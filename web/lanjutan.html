@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DSA Simulator — Additional Topics</title>
+<link rel="preload" href="fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="back" href="/">&larr; Back to main page</a>
+    <h1>DSA Simulator — Additional Topics</h1>
+    <p class="sub">Advanced scheduling algorithms &middot; Thread &amp; IPC &middot; Deadlock handling</p>
+  </div>
+</header>
+
+<nav class="wrap"><div class="tabs" role="tablist">
+  <button class="tab active" data-panel="p-sched" role="tab">1. Process Scheduling</button>
+  <button class="tab" data-panel="p-ipc" role="tab">2. Thread &amp; IPC</button>
+  <button class="tab" data-panel="p-dead" role="tab">3. Deadlock</button>
+  <button class="tab" data-panel="p-about" role="tab">About</button>
+</div></nav>
+
+<main class="wrap">
+
+<!-- ================= PANEL 1 : SCHEDULING ================= -->
+<section id="p-sched" class="panel active">
+  <div class="intro">
+    <h2>Process Scheduling (CPU Scheduling)</h2>
+    <p>
+      This model uses a single CPU that executes one process at a time. When
+      multiple processes are ready to run, the operating system must determine
+      their order. This page simulates five scheduling algorithms for that decision.
+    </p>
+    <p>
+      Modify the process data, then press <b>Run all algorithms</b>. The program computes
+      Gantt charts and performance metrics for each algorithm using the same data,
+      making the comparison objective.
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>Process Data</h3>
+    <table class="input-table" id="proc-table">
+      <thead>
+        <tr>
+          <th>Process</th>
+          <th>Arrival <span class="hint">arrival time</span></th>
+          <th>Burst <span class="hint">CPU time needed</span></th>
+          <th>Priority <span class="hint">lower = more important</span></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="row controls">
+      <button class="btn ghost" id="add-proc">+ Add process</button>
+      <button class="btn ghost" id="reset-proc">Reset to sample</button>
+      <label class="inline">
+        Time quantum (Round Robin)
+        <input type="number" id="quantum" value="3" min="1" max="20">
+      </label>
+      <button class="btn primary" id="run-sched">Run all algorithms</button>
+    </div>
+    <p class="err" id="sched-err" hidden></p>
+  </div>
+
+  <div id="sched-out"></div>
+</section>
+
+<!-- ================= PANEL 2 : IPC ================= -->
+<section id="p-ipc" class="panel">
+  <div class="intro">
+    <h2>Processes, Threads, and Inter-Process Communication</h2>
+    <p>
+      Threads within a single process share the same memory. This makes data
+      exchange fast, but introduces a risk: two threads can modify the same data
+      simultaneously, corrupting the result. The following three simulations
+      demonstrate this problem and its solutions.
+    </p>
+  </div>
+
+  <!-- 2a race condition -->
+  <div class="card">
+    <h3>A. Race Condition &mdash; why synchronization is needed</h3>
+    <p class="note">
+      Multiple threads increment a single shared variable. The final value should be
+      <i>number of threads &times; increments per thread</i>. Without a <b>lock</b>, the final value
+      is lower because some increments overwrite each other.
+    </p>
+    <div class="row controls">
+      <label class="inline">Number of threads
+        <input type="number" id="race-threads" value="4" min="2" max="16"></label>
+      <label class="inline">Increments per thread
+        <input type="number" id="race-incr" value="2000" min="100" max="50000" step="100"></label>
+      <label class="inline">Trials
+        <input type="number" id="race-trials" value="5" min="1" max="10"></label>
+      <label class="inline checkbox">
+        <input type="checkbox" id="race-force" checked>
+        Force thread preemption
+      </label>
+      <button class="btn primary" id="run-race">Run</button>
+    </div>
+    <p class="note small">
+      Without this option, thread preemption depends on the Python scheduler so
+      errors often do not appear, even though the code is still unsafe. Disable
+      the option to compare results.
+    </p>
+    <p class="err" id="race-err" hidden></p>
+    <div id="race-out"></div>
+  </div>
+
+  <!-- 2b producer consumer -->
+  <div class="card">
+    <h3>B. Producer &ndash; Consumer (Bounded Buffer)</h3>
+    <p class="note">
+      The producer places items into a bounded buffer, and the consumer retrieves them.
+      Protected by two <b>semaphores</b> (counting empty and filled slots)
+      and one <b>mutex</b>. Note that the buffer contents never exceed
+      the capacity, and the producer is automatically blocked when the buffer is full.
+    </p>
+    <div class="row controls">
+      <label class="inline">Buffer capacity
+        <input type="number" id="pc-cap" value="4" min="1" max="10"></label>
+      <label class="inline">Producers
+        <input type="number" id="pc-prod" value="2" min="1" max="5"></label>
+      <label class="inline">Consumers
+        <input type="number" id="pc-cons" value="2" min="1" max="5"></label>
+      <label class="inline">Items / producer
+        <input type="number" id="pc-items" value="6" min="1" max="12"></label>
+      <button class="btn primary" id="run-pc">Run</button>
+    </div>
+    <p class="err" id="pc-err" hidden></p>
+    <div id="pc-out"></div>
+  </div>
+
+  <!-- 2c philosophers -->
+  <div class="card">
+    <h3>C. Dining Philosophers</h3>
+    <p class="note">
+      Five philosophers share five forks, and each philosopher needs two forks to
+      eat. This problem illustrates all four deadlock conditions simultaneously. Run
+      all three strategies to compare which ones experience deadlock and which do not.
+    </p>
+    <div class="row controls">
+      <label class="inline">Target meals / philosopher
+        <input type="number" id="ph-meals" value="3" min="1" max="6"></label>
+      <button class="btn primary" id="run-ph">Compare 3 strategies</button>
+    </div>
+    <p class="err" id="ph-err" hidden></p>
+    <div id="ph-out"></div>
+  </div>
+</section>
+
+<!-- ================= PANEL 3 : DEADLOCK ================= -->
+<section id="p-dead" class="panel">
+  <div class="intro">
+    <h2>Deadlock</h2>
+    <p>
+      Deadlock occurs when a group of processes are waiting for resources
+      held by members of the same group, so none can proceed.
+      Four conditions must be met simultaneously (Coffman conditions):
+      <b>mutual exclusion</b>, <b>hold and wait</b>, <b>no preemption</b>, and
+      <b>circular wait</b>. Removing just one is sufficient to
+      prevent deadlock.
+    </p>
+  </div>
+
+  <!-- 3a banker -->
+  <div class="card">
+    <h3>A. Banker&rsquo;s Algorithm &mdash; Avoidance</h3>
+    <p class="note">
+      Each resource request is granted only if the system remains in a
+      <b>safe state</b> afterwards, meaning there still exists an execution order that
+      guarantees all processes can finish. A request may be denied <i>even when the
+      resources are available</i> &mdash; that is its conservative nature.
+    </p>
+    <div class="row controls">
+      <button class="btn primary" id="run-banker">Check state (safety check)</button>
+      <button class="btn ghost" id="run-banker-unsafe">Load UNSAFE example</button>
+    </div>
+    <div class="row controls" id="banker-req-row">
+      <label class="inline">Process
+        <select id="bk-proc"></select></label>
+      <label class="inline">Request
+        <input type="text" id="bk-amt" value="1,0,2" size="10"></label>
+      <button class="btn" id="run-banker-req">Submit request</button>
+      <span class="note small">Enter numbers separated by commas, one per resource type.</span>
+    </div>
+    <p class="err" id="bk-err" hidden></p>
+    <div id="bk-out"></div>
+  </div>
+
+  <!-- 3b detection -->
+  <div class="card">
+    <h3>B. Detection &amp; Recovery</h3>
+    <p class="note">
+      This approach allows deadlock to occur, then detects and
+      resolves it. For single-instance resources, deadlock is detected
+      by finding <b>cycles</b> in the Wait-For Graph.
+    </p>
+    <div class="row controls">
+      <button class="btn primary" data-det="graph-deadlock">Graph: deadlock present</button>
+      <button class="btn ghost" data-det="graph-safe">Graph: no deadlock</button>
+      <button class="btn primary" data-det="multi">Multiple instances + recovery</button>
+      <button class="btn ghost" data-det="ostrich">Ostrich Algorithm</button>
+    </div>
+    <p class="err" id="det-err" hidden></p>
+    <div id="det-out"></div>
+  </div>
+</section>
+
+<!-- ================= PANEL 4 : ABOUT ================= -->
+<section id="p-about" class="panel">
+  <div class="intro">
+    <h2>About this program</h2>
+    <p>
+      DSA Simulator is an educational simulation application for <b>demonstrating how
+      operating system algorithms work</b> through verifiable numbers and steps.
+      This application does not replace or control the computer's operating system.
+    </p>
+
+    <h3>Topic coverage</h3>
+    <ol class="spaced">
+      <li>
+        <b>Process Scheduling</b> &mdash; five algorithms (FCFS, SJF, SRTF,
+        Round Robin, Priority) compared on the same data, complete with
+        Gantt charts and four performance measures.
+      </li>
+      <li>
+        <b>Process, Threads &amp; IPC</b> &mdash; race condition demonstrated with
+        real threads, then fixed with mutex. Followed by two
+        classical problems: Producer-Consumer and Dining Philosophers.
+      </li>
+      <li>
+        <b>Deadlock</b> &mdash; Banker&rsquo;s Algorithm for avoidance, Wait-For
+        Graph for detection, victim termination for recovery, and Ostrich
+        Algorithm as a comparison.
+      </li>
+    </ol>
+
+    <h3>Notes about results</h3>
+    <ul class="spaced">
+      <li>
+        The scheduling section is <b>deterministic</b>: the same data always
+        produces the same results, and correctness is tested in <code>tests/</code>.
+      </li>
+      <li>
+        The thread section runs <b>real threads</b>, so results
+        <b>may vary between runs</b>. This is not a program error,
+        but rather the nature of concurrent execution being demonstrated.
+      </li>
+      <li>
+        All numbers are computed directly by the Python program on this computer,
+        not manually written values.
+      </li>
+    </ul>
+
+    <h3>Documentation</h3>
+    <p>
+      User guide is available in <code>docs/PANDUAN-PENGGUNA.md</code>, and the full
+      report is available in <code>output/pdf/</code>.
+    </p>
+  </div>
+</section>
+
+</main>
+
+<footer class="wrap foot">
+  <p>DSA Simulator &middot; Running locally &middot; Python and HTML/CSS/JavaScript without additional libraries</p>
+</footer>
+
+<script src="js/util.js"></script>
+<script src="js/scheduling.js"></script>
+<script src="js/ipc.js"></script>
+<script src="js/deadlock.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulator Sistem Operasi</title>
+<link rel="preload" href="fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="back" href="/">&larr; Kembali ke halaman utama</a>
+    <h1>Simulator Sistem Operasi</h1>
+    <p class="sub">Alat peraga untuk tiga materi: Penjadwalan Proses &middot; Proses, Thread &amp; IPC &middot; Deadlock</p>
+  </div>
+</header>
+
+<nav class="wrap"><div class="tabs" role="tablist">
+  <button class="tab active" data-panel="p-sched" role="tab">1. Penjadwalan Proses</button>
+  <button class="tab" data-panel="p-ipc" role="tab">2. Thread &amp; IPC</button>
+  <button class="tab" data-panel="p-dead" role="tab">3. Deadlock</button>
+  <button class="tab" data-panel="p-about" role="tab">Tentang</button>
+</div></nav>
+
+<main class="wrap">
+
+<!-- ================= PANEL 1 : SCHEDULING ================= -->
+<section id="p-sched" class="panel active">
+  <div class="intro">
+    <h2>Penjadwalan Proses (CPU Scheduling)</h2>
+    <p>
+      Model ini memakai satu CPU/core yang menjalankan satu proses pada satu waktu. Ketika banyak proses
+      siap dijalankan, sistem operasi harus memilih urutannya. Algoritma yang
+      dipakai untuk memilih itulah yang disimulasikan di sini.
+    </p>
+    <p>
+      Ubah data proses di bawah, lalu tekan <b>Jalankan</b>. Program akan
+      menghitung Gantt chart dan empat ukuran kinerja untuk setiap algoritma
+      pada data yang sama, sehingga perbandingannya adil.
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>Data Proses</h3>
+    <table class="input-table" id="proc-table">
+      <thead>
+        <tr>
+          <th>Proses</th>
+          <th>Arrival <span class="hint">waktu tiba</span></th>
+          <th>Burst <span class="hint">lama butuh CPU</span></th>
+          <th>Prioritas <span class="hint">kecil = penting</span></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="row controls">
+      <button class="btn ghost" id="add-proc">+ Tambah proses</button>
+      <button class="btn ghost" id="reset-proc">Kembalikan contoh</button>
+      <label class="inline">
+        Time quantum (Round Robin)
+        <input type="number" id="quantum" value="3" min="1" max="20">
+      </label>
+      <button class="btn primary" id="run-sched">Jalankan semua algoritma</button>
+    </div>
+    <p class="err" id="sched-err" hidden></p>
+  </div>
+
+  <div id="sched-out"></div>
+</section>
+
+<!-- ================= PANEL 2 : IPC ================= -->
+<section id="p-ipc" class="panel">
+  <div class="intro">
+    <h2>Proses, Thread, dan Komunikasi Antar Proses</h2>
+    <p>
+      Thread di dalam satu proses berbagi memori yang sama. Itu membuat
+      komunikasi cepat, tapi juga berbahaya: dua thread bisa mengubah data yang
+      sama pada waktu bersamaan dan saling merusak hasil. Tiga percobaan di
+      bawah menunjukkan masalahnya dan cara mengatasinya.
+    </p>
+  </div>
+
+  <!-- 2a race condition -->
+  <div class="card">
+    <h3>A. Race Condition &mdash; kenapa sinkronisasi dibutuhkan</h3>
+    <p class="note">
+      Beberapa thread menambah satu variabel bersama. Hasilnya seharusnya
+      <i>jumlah thread &times; jumlah increment</i>. Tanpa <b>lock</b>, hasilnya
+      lebih kecil karena ada increment yang hilang tertimpa.
+    </p>
+    <div class="row controls">
+      <label class="inline">Jumlah thread
+        <input type="number" id="race-threads" value="4" min="2" max="16"></label>
+      <label class="inline">Increment per thread
+        <input type="number" id="race-incr" value="2000" min="100" max="50000" step="100"></label>
+      <label class="inline">Percobaan
+        <input type="number" id="race-trials" value="5" min="1" max="10"></label>
+      <label class="inline checkbox">
+        <input type="checkbox" id="race-force" checked>
+        Paksa perpindahan thread
+      </label>
+      <button class="btn primary" id="run-race">Jalankan</button>
+    </div>
+    <p class="note small">
+      Tanpa dipaksa, perpindahan thread bergantung penjadwalan Python dan bug-nya
+      sering tidak muncul &mdash; walaupun kodenya tetap salah. Coba matikan
+      centang itu untuk melihatnya sendiri.
+    </p>
+    <p class="err" id="race-err" hidden></p>
+    <div id="race-out"></div>
+  </div>
+
+  <!-- 2b producer consumer -->
+  <div class="card">
+    <h3>B. Producer &ndash; Consumer (Bounded Buffer)</h3>
+    <p class="note">
+      Produsen menaruh barang ke buffer berukuran terbatas, konsumen mengambilnya.
+      Dijaga oleh dua <b>semaphore</b> (penghitung slot kosong dan slot terisi)
+      serta satu <b>mutex</b>. Perhatikan bahwa isi buffer tidak pernah melebihi
+      kapasitas, dan produsen otomatis diblokir saat buffer penuh.
+    </p>
+    <div class="row controls">
+      <label class="inline">Kapasitas buffer
+        <input type="number" id="pc-cap" value="4" min="1" max="10"></label>
+      <label class="inline">Produsen
+        <input type="number" id="pc-prod" value="2" min="1" max="5"></label>
+      <label class="inline">Konsumen
+        <input type="number" id="pc-cons" value="2" min="1" max="5"></label>
+      <label class="inline">Barang / produsen
+        <input type="number" id="pc-items" value="6" min="1" max="12"></label>
+      <button class="btn primary" id="run-pc">Jalankan</button>
+    </div>
+    <p class="err" id="pc-err" hidden></p>
+    <div id="pc-out"></div>
+  </div>
+
+  <!-- 2c philosophers -->
+  <div class="card">
+    <h3>C. Dining Philosophers</h3>
+    <p class="note">
+      Lima filsuf, lima garpu, dan setiap filsuf butuh dua garpu untuk makan.
+      Masalah ini memperlihatkan keempat syarat deadlock sekaligus. Jalankan
+      ketiga strategi untuk melihat mana yang macet dan mana yang selamat.
+    </p>
+    <div class="row controls">
+      <label class="inline">Target makan / filsuf
+        <input type="number" id="ph-meals" value="3" min="1" max="6"></label>
+      <button class="btn primary" id="run-ph">Bandingkan 3 strategi</button>
+    </div>
+    <p class="err" id="ph-err" hidden></p>
+    <div id="ph-out"></div>
+  </div>
+</section>
+
+<!-- ================= PANEL 3 : DEADLOCK ================= -->
+<section id="p-dead" class="panel">
+  <div class="intro">
+    <h2>Deadlock</h2>
+    <p>
+      Deadlock terjadi ketika sekelompok proses saling menunggu sumber daya yang
+      dipegang anggota kelompok itu sendiri, sehingga tidak ada yang bisa maju.
+      Empat syarat harus terpenuhi bersamaan (syarat Coffman):
+      <b>mutual exclusion</b>, <b>hold and wait</b>, <b>no preemption</b>, dan
+      <b>circular wait</b>. Menghilangkan salah satunya saja sudah cukup untuk
+      mencegah deadlock.
+    </p>
+  </div>
+
+  <!-- 3a banker -->
+  <div class="card">
+    <h3>A. Banker&rsquo;s Algorithm &mdash; Avoidance</h3>
+    <p class="note">
+      Setiap permintaan sumber daya dikabulkan hanya jika sistem tetap berada di
+      <b>safe state</b> sesudahnya, yaitu masih ada urutan eksekusi yang menjamin
+      semua proses bisa selesai. Permintaan bisa ditolak <i>walaupun sumber
+      dayanya tersedia</i> &mdash; itulah sifat konservatifnya.
+    </p>
+    <div class="row controls">
+      <button class="btn primary" id="run-banker">Periksa keadaan (safety check)</button>
+      <button class="btn ghost" id="run-banker-unsafe">Muat contoh UNSAFE</button>
+    </div>
+    <div class="row controls" id="banker-req-row">
+      <label class="inline">Proses
+        <select id="bk-proc"></select></label>
+      <label class="inline">Permintaan
+        <input type="text" id="bk-amt" value="1,0,2" size="10"></label>
+      <button class="btn" id="run-banker-req">Ajukan permintaan</button>
+      <span class="note small">Tulis angka dipisah koma, satu per jenis sumber daya.</span>
+    </div>
+    <p class="err" id="bk-err" hidden></p>
+    <div id="bk-out"></div>
+  </div>
+
+  <!-- 3b detection -->
+  <div class="card">
+    <h3>B. Deteksi &amp; Recovery</h3>
+    <p class="note">
+      Pendekatan ini membiarkan deadlock terjadi, lalu mendeteksi dan
+      memperbaikinya. Untuk sumber daya instance tunggal, deadlock dideteksi
+      dengan mencari <b>siklus</b> pada Wait-For Graph.
+    </p>
+    <div class="row controls">
+      <button class="btn primary" data-det="graph-deadlock">Graf: ada deadlock</button>
+      <button class="btn ghost" data-det="graph-safe">Graf: tanpa deadlock</button>
+      <button class="btn primary" data-det="multi">Banyak instance + recovery</button>
+      <button class="btn ghost" data-det="ostrich">Ostrich Algorithm</button>
+    </div>
+    <p class="err" id="det-err" hidden></p>
+    <div id="det-out"></div>
+  </div>
+</section>
+
+<!-- ================= PANEL 4 : ABOUT ================= -->
+<section id="p-about" class="panel">
+  <div class="intro">
+    <h2>Tentang program ini</h2>
+    <p>
+      Program ini dibuat sebagai alat peraga mata kuliah Sistem Operasi. Tujuannya
+      bukan menjadi sistem operasi, melainkan <b>memperlihatkan cara kerja
+      algoritma di dalamnya</b> dengan angka dan langkah yang bisa diperiksa.
+    </p>
+
+    <h3>Tiga materi yang dibahas</h3>
+    <ol class="spaced">
+      <li>
+        <b>Process Scheduling</b> &mdash; lima algoritma (FCFS, SJF, SRTF,
+        Round Robin, Priority) dibandingkan pada data yang sama, lengkap dengan
+        Gantt chart dan empat ukuran kinerja.
+      </li>
+      <li>
+        <b>Process, Threads &amp; IPC</b> &mdash; race condition dibuktikan dengan
+        thread sungguhan, lalu diperbaiki dengan mutex. Dilanjutkan dengan dua
+        masalah klasik: Producer-Consumer dan Dining Philosophers.
+      </li>
+      <li>
+        <b>Deadlock</b> &mdash; Banker&rsquo;s Algorithm untuk avoidance, Wait-For
+        Graph untuk detection, terminasi korban untuk recovery, dan Ostrich
+        Algorithm sebagai pembanding.
+      </li>
+    </ol>
+
+    <h3>Yang perlu diketahui tentang hasilnya</h3>
+    <ul class="spaced">
+      <li>
+        Bagian penjadwalan bersifat <b>deterministik</b>: data yang sama selalu
+        memberi hasil yang sama, dan kebenarannya diuji di <code>tests/</code>.
+      </li>
+      <li>
+        Bagian thread memakai <b>thread sungguhan</b>, jadi hasilnya
+        <b>berubah setiap kali dijalankan</b>. Itu bukan kesalahan program &mdash;
+        justru itulah sifat yang sedang ditunjukkan.
+      </li>
+      <li>
+        Semua angka dihitung ulang oleh Python di komputer ini. Tidak ada hasil
+        yang ditulis manual atau dipalsukan.
+      </li>
+    </ul>
+
+    <h3>Dokumentasi</h3>
+    <p>
+      Penjelasan lengkap untuk pembaca yang belum pernah menyentuh kode ada di
+      berkas <code>docs/PANDUAN-PENGGUNA.md</code> di folder projek. Laporan ada di
+      <code>docs/</code>.
+    </p>
+  </div>
+</section>
+
+</main>
+
+<footer class="wrap foot">
+  <p>Dijalankan dari komputer ini sendiri &middot; Python + HTML/CSS/JavaScript, tanpa library tambahan</p>
+</footer>
+
+<script src="js/util.js"></script>
+<script src="js/scheduling.js"></script>
+<script src="js/ipc.js"></script>
+<script src="js/deadlock.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

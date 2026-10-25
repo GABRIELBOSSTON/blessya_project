@@ -1,0 +1,223 @@
+Server uji berjalan di http://127.0.0.1:57017
+
+======================================================================
+BERKAS STATIS
+======================================================================
+  LULUS  GET / mengembalikan HTML -> 6698 byte
+  LULUS  GET /css/style.css
+  [server] "GET /berkas-tidak-ada.txt HTTP/1.1" 404 -
+  LULUS  berkas tidak ada -> 404
+  [server] "GET /../run.py HTTP/1.1" 403 -
+  LULUS  path traversal ditolak -> status 403
+
+======================================================================
+API PENJADWALAN
+======================================================================
+  [server] "POST /api/scheduling HTTP/1.1" 200 -
+  LULUS  status 200
+  LULUS  mengembalikan 6 algoritma
+  LULUS  ada bagian insight
+  LULUS  setiap hasil punya timeline
+  LULUS  setiap hasil punya metrics
+  LULUS  setiap hasil punya log
+  LULUS  total CPU terpakai = total burst
+  LULUS  rumus waiting = turnaround - burst
+  [server] "POST /api/scheduling HTTP/1.1" 200 -
+  LULUS  satu algoritma saja
+  [server] "POST /api/scheduling HTTP/1.1" 400 -
+  LULUS  daftar proses kosong -> 400 -> Masukan tidak valid: daftar proses tidak boleh k
+  [server] "POST /api/scheduling HTTP/1.1" 400 -
+  LULUS  algoritma tak dikenal -> 400
+  [server] "POST /api/scheduling HTTP/1.1" 400 -
+  LULUS  nama proses ganda -> 400 -> Masukan tidak valid: nama proses 'A' dipakai dua
+  [server] "POST /api/scheduling HTTP/1.1" 400 -
+  LULUS  burst berlebihan ditolak dengan pesan jelas -> Masukan tidak valid: Lama proses P1 harus bilangan bulat 1 sampai 50
+
+======================================================================
+API IPC
+======================================================================
+  [server] "POST /api/ipc/race HTTP/1.1" 200 -
+  LULUS  race: status 200
+  LULUS  race: ada 2 percobaan
+  LULUS  race: versi dengan lock SELALU benar
+  LULUS  race: versi tanpa lock tidak pernah melebihi nilai benar
+  [server] "POST /api/ipc/producer-consumer HTTP/1.1" 200 -
+  LULUS  prod-cons: status 200
+  LULUS  prod-cons: produksi = 8 -> 8
+  LULUS  prod-cons: tidak ada overflow
+  LULUS  prod-cons: isi buffer <= kapasitas di SEMUA kejadian -> tertinggi 3
+  LULUS  prod-cons: jumlah seimbang
+  LULUS  prod-cons: tidak ada thread menggantung
+  [server] "POST /api/ipc/philosophers HTTP/1.1" 200 -
+  LULUS  filsuf: status 200
+  LULUS  filsuf: 3 strategi diuji
+  LULUS  filsuf: ordering tidak deadlock
+  LULUS  filsuf: waiter tidak deadlock
+  LULUS  filsuf: ordering semua kebagian makan -> 10
+  LULUS  filsuf: naive bermasalah (deadlock atau makan tak lengkap) -> deadlock=True, makan=2
+  [server] "POST /api/ipc/philosophers HTTP/1.1" 400 -
+  LULUS  strategi tak dikenal -> 400
+
+======================================================================
+API DEADLOCK
+======================================================================
+  [server] "POST /api/deadlock/bankers HTTP/1.1" 200 -
+  LULUS  banker: status 200
+  LULUS  banker: contoh baku SAFE
+  LULUS  banker: safe sequence memuat semua 5 proses -> P1 -> P3 -> P0 -> P2 -> P4
+  LULUS  banker: Need = Max - Allocation
+  LULUS  banker: total sistem [10,5,7]
+  [server] "POST /api/deadlock/bankers HTTP/1.1" 200 -
+  LULUS  banker: contoh unsafe terdeteksi
+  [server] "POST /api/deadlock/bankers HTTP/1.1" 200 -
+  LULUS  banker: P1 minta [1,0,2] DIKABULKAN
+  [server] "POST /api/deadlock/bankers HTTP/1.1" 200 -
+  LULUS  banker: P4 minta [3,3,0] ditolak karena unsafe -> unsafe
+  [server] "POST /api/deadlock/bankers HTTP/1.1" 200 -
+  LULUS  banker: permintaan melebihi Available -> ditunda -> must_wait
+  [server] "POST /api/deadlock/bankers HTTP/1.1" 200 -
+  LULUS  banker: permintaan melebihi Need -> error proses -> exceeds_need
+  [server] "POST /api/deadlock/bankers HTTP/1.1" 400 -
+  LULUS  banker: proses tak dikenal -> 400
+  [server] "POST /api/deadlock/detection HTTP/1.1" 200 -
+  LULUS  deteksi graf: deadlock ditemukan
+  LULUS  deteksi graf: siklus P1->P2->P3->P1 -> ['P1', 'P2', 'P3', 'P1']
+  [server] "POST /api/deadlock/detection HTTP/1.1" 200 -
+  LULUS  deteksi graf: tanpa siklus -> aman
+  [server] "POST /api/deadlock/detection HTTP/1.1" 200 -
+  LULUS  deteksi multi: deadlock ditemukan
+  LULUS  deteksi multi: keempat proses macet
+  LULUS  deteksi multi: ada bagian recovery
+  LULUS  deteksi multi: recovery berhasil
+  LULUS  deteksi multi: ketiga strategi recovery berhasil
+  LULUS  deteksi multi: most_resources korban paling sedikit
+  [server] "POST /api/deadlock/detection HTTP/1.1" 200 -
+  LULUS  ostrich: status 200
+  LULUS  ostrich: tidak melakukan tindakan
+  [server] "POST /api/deadlock/detection HTTP/1.1" 400 -
+  LULUS  kind tak dikenal -> 400
+
+======================================================================
+PENANGANAN KESALAHAN
+======================================================================
+  [server] "POST /api/endpoint-palsu HTTP/1.1" 404 -
+  LULUS  endpoint tak ada -> 404
+  [server] "POST /api/scheduling HTTP/1.1" 400 -
+  LULUS  JSON rusak -> 400
+
+======================================================================
+HASIL AKHIR: 59 lulus, 0 gagal
+======================================================================
+test_api_strict_values (__main__.BufferTests.test_api_strict_values) ... ok
+test_fast_consumer (__main__.BufferTests.test_fast_consumer) ... ok
+test_fast_producer (__main__.BufferTests.test_fast_producer) ... ok
+test_invalid_params (__main__.BufferTests.test_invalid_params) ... ok
+test_more_consumers_than_items (__main__.BufferTests.test_more_consumers_than_items) ... ok
+test_multiple_workers_trace (__main__.BufferTests.test_multiple_workers_trace) ... ok
+test_timeout_cleans_threads (__main__.BufferTests.test_timeout_cleans_threads) ... ok
+test_worker_error_cancels_peer (__main__.BufferTests.test_worker_error_cancels_peer) ... ok
+test_complex_json_rejected_and_server_recovers (__main__.HTTPRobustnessTests.test_complex_json_rejected_and_server_recovers) ... ok
+test_arrival_tie_lexical (__main__.SchedulingTests.test_arrival_tie_lexical) ... ok
+test_bad_process_shapes (__main__.SchedulingTests.test_bad_process_shapes) ... ok
+test_duplicate_direct_call (__main__.SchedulingTests.test_duplicate_direct_call) ... ok
+test_fcfs_manual (__main__.SchedulingTests.test_fcfs_manual) ... ok
+test_idle_not_switch (__main__.SchedulingTests.test_idle_not_switch) ... ok
+test_invalid_numbers_api (__main__.SchedulingTests.test_invalid_numbers_api) ... ok
+test_quantum_type (__main__.SchedulingTests.test_quantum_type) ... ok
+test_reserved_id (__main__.SchedulingTests.test_reserved_id) ... ok
+test_rr_large_quantum_fcfs (__main__.SchedulingTests.test_rr_large_quantum_fcfs) ... ok
+test_rr_manual_boundary_arrival (__main__.SchedulingTests.test_rr_manual_boundary_arrival) ... ok
+test_rr_single_process_not_switch (__main__.SchedulingTests.test_rr_single_process_not_switch) ... ok
+test_single_api_has_result (__main__.SchedulingTests.test_single_api_has_result) ... ok
+
+----------------------------------------------------------------------
+Ran 21 tests in 1.696s
+
+OK
+  [server] "POST /api/scheduling HTTP/1.1" 400 -
+  [server] "POST /api/scheduling HTTP/1.1" 400 -
+  [server] "POST /api/scheduling HTTP/1.1" 200 -
+  [server] "GET /../web-probe-u6orjio3/probe.txt HTTP/1.1" 403 -
+======================================================================
+KASUS 1 - FCFS, convoy effect
+======================================================================
+  gantt: P1(0-24) P2(24-27) P3(27-30)
+  LULUS  FCFS avg waiting: 17.0
+  LULUS  FCFS total time: 30
+  gantt: P2(0-3) P3(3-6) P1(6-30)
+  LULUS  SJF avg waiting: 3.0
+  -> SJF memperbaiki avg waiting 17.0 menjadi 3.0 pada data yang sama.
+
+======================================================================
+KASUS 2 - SRTF preemption
+======================================================================
+  gantt: P1(0-1) P2(1-5) P4(5-10) P1(10-17) P3(17-26)
+  LULUS  SRTF avg waiting: 6.5
+  LULUS  SRTF total time: 26
+  LULUS  FCFS avg waiting (data sama): 8.75
+  -> SRTF 6.50 lebih baik dari FCFS 8.75 pada data identik.
+
+======================================================================
+KASUS 3 - Round Robin, pengaruh quantum
+======================================================================
+  quantum= 1  avg_waiting=  19.0  avg_response=  1.0  context_switch=29
+  quantum= 2  avg_waiting=  18.0  avg_response=  2.0  context_switch=14
+  quantum= 5  avg_waiting=  15.0  avg_response=  5.0  context_switch=5
+  quantum=10  avg_waiting=  10.0  avg_response= 10.0  context_switch=2
+  quantum=30  avg_waiting=  10.0  avg_response= 10.0  context_switch=2
+  LULUS  quantum besar -> identik FCFS: 10.0
+  LULUS  quantum=1 response time terkecil: 1.0
+  -> Trade-off terbukti: quantum kecil = response cepat tapi switch banyak.
+
+======================================================================
+KASUS 4 - CPU idle saat belum ada proses tiba
+======================================================================
+  gantt: IDLE(0-5) P1(5-8)
+  LULUS  ada segmen IDLE: IDLE
+  LULUS  utilisasi CPU: 37.5
+
+======================================================================
+KASUS 5 - Priority dan starvation
+======================================================================
+  gantt: P-penting(0-2) P-biasa(2-6) P-rendah(6-9)
+  LULUS  urutan pertama = prioritas tertinggi: P-penting
+  LULUS  urutan terakhir = prioritas terendah: P-rendah
+
+======================================================================
+KASUS 6 - Validasi masukan salah
+======================================================================
+  LULUS  burst=0 ditolak: X: burst time harus > 0, bukan 0
+  LULUS  quantum=0 ditolak: quantum harus bilangan bulat > 0
+
+======================================================================
+KASUS 7 - Konsistensi rumus pada semua algoritma
+======================================================================
+  LULUS  FCFS (First Come First Served)           waiting=turnaround-burst, total CPU=12
+  LULUS  SJF (Shortest Job First)                 waiting=turnaround-burst, total CPU=12
+  LULUS  SRTF (Shortest Remaining Time First, pre waiting=turnaround-burst, total CPU=12
+  LULUS  Round Robin (quantum=2)                  waiting=turnaround-burst, total CPU=12
+  LULUS  Priority (non-preemptive)                waiting=turnaround-burst, total CPU=12
+  LULUS  Priority (preemptive)                    waiting=turnaround-burst, total CPU=12
+
+======================================================================
+HASIL AKHIR: 20 lulus, 0 gagal
+======================================================================
+
+########################################################################
+#  MENJALANKAN test_api.py
+########################################################################
+  -> test_api.py lulus semua
+
+########################################################################
+#  MENJALANKAN test_core.py
+########################################################################
+  -> test_core.py lulus semua
+
+########################################################################
+#  MENJALANKAN test_scheduling.py
+########################################################################
+  -> test_scheduling.py lulus semua
+
+========================================================================
+HASIL: seluruh 3 berkas pengujian LULUS
+========================================================================

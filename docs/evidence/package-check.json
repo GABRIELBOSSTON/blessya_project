@@ -1,0 +1,17 @@
+{
+  "checks": [
+    "ZIP dapat diekstrak dan seluruh CRC valid",
+    "Manifest cocok; dokumen kerja serta arsip tidak ikut paket akademik",
+    "Soal bersih dan pengungkapan bantuan AI tetap disertakan",
+    "Runtime, lisensi, dan PDF tersedia tanpa dependency tooling",
+    "mulai.bat test dari folder ekstraksi: seluruh tiga berkas lulus",
+    "Halaman utama, CSS, JavaScript dan halaman tambahan dapat dimuat",
+    "API FCFS paket cocok dengan contoh manual",
+    "API Producer-Consumer paket selesai, delapan barang dan buffer akhir kosong"
+  ],
+  "passed": 8,
+  "extracted_to": "D:\\blessya\\.tools\\package-check-8yv3y1to\\Proyek-Blessya",
+  "archive_sha256": "5ce54b5f6f30535a6b63c9714552bc2ef730cb2fd271b4f875c1328b98aaa160",
+  "launcher_exit_code": 0,
+  "server_stopped": true
+}

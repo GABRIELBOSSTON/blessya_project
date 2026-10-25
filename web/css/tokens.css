@@ -1,0 +1,90 @@
+/* ===================================================================
+   Token desain bersama (gaya shadcn: minimal, monokrom).
+   Dipakai index.html dan lanjutan.html. Ubah nilai di sini, bukan di
+   masing-masing komponen. Font disimpan lokal agar aplikasi tetap
+   berjalan tanpa internet (lisensi OFL ada di folder fonts/).
+   =================================================================== */
+
+@font-face {
+  font-family: "Geist";
+  src: url("../fonts/geist-latin-wght-normal.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Fira Code";
+  src: url("../fonts/fira-code-latin-wght-normal.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+
+  /* Font */
+  --font-sans: "Geist", ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: "Fira Code", ui-monospace, "Cascadia Code", Consolas, monospace;
+
+  /* Skala huruf 12/14/16/20/24/32 */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+
+  /* Skala jarak 4/8/12/16/24/32 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Sudut */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-full: 999px;
+
+  /* Warna dasar dari desain */
+  --color-primary: #000000;
+  --color-primary-fg: #ffffff;
+  --color-secondary: #111111;
+  --color-primary-hover: #27272a;  /* zinc-800: hover tetap gelap, teks putih 14,9:1 */
+  --color-surface: #ffffff;
+  --color-text: #111827;
+
+  /* Netral turunan (zinc). muted-fg kontras 7,7:1, subtle-fg 4,8:1 */
+  --color-background: #fafafa;
+  --color-muted: #f4f4f5;
+  --color-muted-fg: #52525b;
+  --color-subtle-fg: #71717a;
+  --color-border: #e4e4e7;
+  --color-input: #8a8a93;      /* batas kolom isian, kontras 3,4:1 (WCAG 1.4.11) */
+  --color-ring: #000000;
+
+  /* Status. Warna dasar untuk isian/garis; *-fg untuk teks (≥4,5:1). */
+  --color-success: #16a34a;
+  --color-success-fg: #15803d;
+  --color-success-bg: #f0fdf4;
+  --color-warning: #d97706;
+  --color-warning-fg: #b45309;
+  --color-warning-bg: #fffbeb;
+  --color-danger: #dc2626;
+  --color-danger-fg: #b91c1c;
+  --color-danger-bg: #fef2f2;
+
+  /* Bayangan halus */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .05);
+  --shadow-md: 0 1px 3px rgba(0, 0, 0, .08), 0 1px 2px rgba(0, 0, 0, .04);
+
+  /* Warna proses pada Gantt chart (tint 200; teks --color-text ≥ 12:1) */
+  --chart-1: #bfdbfe;
+  --chart-2: #bbf7d0;
+  --chart-3: #fde68a;
+  --chart-4: #ddd6fe;
+  --chart-5: #fecdd3;
+  --chart-6: #a5f3fc;
+}

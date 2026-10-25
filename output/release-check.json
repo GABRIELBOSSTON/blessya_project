@@ -1,0 +1,20 @@
+{
+  "review_date": "2026-10-25",
+  "timezone": "Asia/Jakarta",
+  "archive_sha256": "53c993bee3809026451e50c3fd69e9f043367ad4f3553fcf77f0240224d12ed6",
+  "all_manifest_hashes_match": true,
+  "source_runtime_pdf_files_identical_to_tested_copy": 70,
+  "documentation_updated_after_extraction_test": [
+    "docs/arsip/STATUS-AWAL.md",
+    "docs/evidence/package-check.json",
+    "docs/evidence/package-tests.txt",
+    "docs/HASIL-TUGAS.md",
+    "docs/RENCANA-KERJA.md",
+    "docs/STATUS-KERJA.md",
+    "docs/TUGAS-AKTIF.md",
+    "README.md"
+  ],
+  "pdf_pages": 28,
+  "identity_verified_in_pdf": true,
+  "archive_crc_valid": true
+}

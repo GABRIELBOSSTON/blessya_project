@@ -1,0 +1,779 @@
+# Simulator Edukasi Penjadwalan CPU dan Sinkronisasi Producer-Consumer
+
+Laporan Tugas Data Structure
+
+Nama: Blessya  
+NIM: 001202400107  
+Kelas: Cyber Security
+
+Institusi: President University  
+Dosen pengampu: Mam Ocha  
+
+## Kata Pengantar
+
+Laporan ini disusun untuk memenuhi tugas pembuatan sistem edukasi sederhana yang memperagakan materi Sistem Operasi. Dua materi yang dipilih adalah Process Scheduling serta IPC & Classical Problems, yang diwujudkan melalui simulator FCFS, Round Robin, dan Producer–Consumer.
+
+Isi laporan mencakup penjelasan materi, rancangan aplikasi, implementasi, dan hasil pengujian. Kode sumber, data percobaan, dan petunjuk menjalankan program disertakan agar setiap hasil dapat diperiksa kembali.
+
+Penulis mengucapkan terima kasih kepada Mam Ocha selaku dosen pengampu yang telah memberikan tugas dan arahan ini.
+
+Dalam pengerjaannya, penulis dibantu asisten AI (Codex dan Claude) untuk penulisan kode, penyusunan dokumentasi, dan sebagian pemeriksaan otomatis. Teori dirujuk ke sumber yang tercantum pada daftar pustaka, dan angka hasil dicocokkan dengan perhitungan manual serta keluaran pengujian. Hal ini dinyatakan agar proses penyusunan laporan diketahui secara terbuka.
+
+Penulis menyadari laporan ini masih memiliki kekurangan, sehingga kritik dan saran sangat diharapkan. Semoga laporan dan aplikasi ini bermanfaat bagi pembaca dalam memahami materi Sistem Operasi.
+
+## Abstrak
+
+Proyek ini menghasilkan aplikasi lokal untuk memperagakan dua materi Sistem Operasi, yaitu Process Scheduling dan IPC & Classical Problems. FCFS serta Round Robin digunakan untuk menunjukkan urutan giliran CPU dan perhitungan waktu tunggu, turnaround, serta respons. Producer-Consumer menggunakan thread Python, buffer terbatas, semaphore, dan mutex untuk menunjukkan koordinasi akses data bersama.
+
+Metode evaluasi meliputi perhitungan manual, pengujian fungsi dan HTTP, pemeriksaan browser, serta analisis lima belas run buffer. Pada contoh tiga proses, FCFS dan Round Robin quantum dua menghasilkan rata-rata waktu tunggu 3,33 dan turnaround 6,33; respons rata-rata masing-masing 3,33 dan satu. Seluruh run buffer yang dicatat menyelesaikan target delapan barang dengan kapasitas terjaga dan tanpa thread tertinggal.
+
+Pengujian juga menunjukkan bahwa jeda yang diminta pada thread tidak sama dengan jarak waktu yang benar-benar terjadi: jeda 10 ms tercatat sebagai jarak 14,54–21,82 ms. Animasi buffer di browser adalah pemutaran ulang rekaman setelah thread selesai. Aplikasi ini layak dipakai sebagai alat peraga untuk kedua materi, dengan batas bahwa Producer–Consumer memakai thread di dalam satu program, bukan dua proses terpisah.
+
+Kata kunci: FCFS, Round Robin, penjadwalan CPU, Producer-Consumer, semaphore, mutex.
+
+## BAB I PENDAHULUAN
+
+### 1.1 Latar belakang
+
+Belajar Sistem Operasi adalah alat peraga lokal untuk mengamati pembagian giliran CPU dan pertukaran barang melalui buffer terbatas. Program menyediakan dua materi inti: Process Scheduling melalui FCFS dan Round Robin, serta IPC & Classical Problems melalui Producer–Consumer. Pengguna dapat mengubah masukan, menjalankan percobaan, dan membaca urutan kejadian bersama penjelasan hasilnya.
+
+Kebutuhan proyek berasal dari tugas yang meminta sebuah sistem sederhana untuk tujuan pendidikan dengan minimal dua materi Sistem Operasi. Laporan harus memuat penjelasan materi serta dokumentasi sistem dengan panjang minimal dua puluh halaman. Pemilihan dua materi ini memberikan dua bentuk pengamatan yang berbeda: scheduling menghasilkan urutan waktu yang dapat dihitung ulang, sedangkan Producer–Consumer memperlihatkan interaksi pekerja yang berbagi penyimpanan.
+
+Masalah belajar yang ingin dibantu adalah kesulitan menghubungkan istilah dengan kejadian konkret. Angka waktu tunggu kurang bermakna jika pembaca tidak mengetahui kapan proses datang dan kapan mulai berjalan. Demikian pula, istilah semaphore lebih mudah dijelaskan setelah pengguna melihat produsen harus menunggu ketika izin slot kosong belum tersedia. Karena itu, tampilan berangkat dari contoh kecil dan menyediakan informasi rinci sebagai bagian yang dapat dibuka ketika dibutuhkan.
+
+Sistem dibangun sebagai aplikasi Python dengan antarmuka browser. Seluruh fungsi inti aplikasi memakai pustaka standar Python serta HTML, CSS dan JavaScript tanpa framework. Pengguna tidak perlu membuat akun, menghubungkan layanan luar, atau memasang package aplikasi. Program berjalan pada localhost dan tetap dapat digunakan tanpa koneksi internet setelah folder proyek tersedia.
+
+Hasil utama proyek adalah aplikasi dengan dua tab materi, perhitungan manual yang cocok dengan kasus uji, rekaman buffer dari thread nyata, dan bukti pengujian melalui algoritma, HTTP serta browser. Laporan ini menjelaskan pilihan model, implementasi, percobaan, perbaikan yang dilakukan, dan batas kesimpulannya. Hasil yang dilaporkan berlaku untuk pengujian yang benar-benar dijalankan; tidak semua kemungkinan input dapat dicoba satu per satu.
+
+### 1.2 Rumusan masalah
+
+Berdasarkan latar belakang tersebut, laporan ini menjawab tiga pertanyaan berikut.
+
+1. Bagaimana memperagakan perbedaan urutan giliran CPU pada FCFS dan Round Robin, beserta pengaruhnya terhadap waktu tunggu, turnaround, dan respons?
+
+2. Bagaimana produsen dan konsumen dapat berbagi buffer terbatas tanpa melebihi kapasitas, kehilangan barang, atau mengambil dari buffer kosong?
+
+3. Bagaimana menyajikan hasil percobaan agar setiap angka dapat dihitung ulang dan ditelusuri ke kode serta datanya?
+
+Proyek ini tidak meneliti peningkatan nilai belajar pada sekelompok mahasiswa dan tidak mengukur kecepatan sistem operasi yang sesungguhnya. Pemeriksaan dilakukan melalui perhitungan manual, pengujian program, pemeriksaan tampilan, dan analisis rekaman kejadian. Kata edukasi pada judul menyatakan tujuan aplikasi sebagai alat peraga.
+
+### 1.3 Tujuan dan ruang lingkup
+
+Tujuan pertama adalah menunjukkan bagaimana aturan pemberian giliran mengubah waktu mulai dan selesai proses. Tujuan kedua adalah menunjukkan bagaimana produsen dan konsumen dapat berbagi buffer tanpa melampaui kapasitas atau mengambil barang dari tempat kosong. Tujuan ketiga adalah mendokumentasikan rancangan, implementasi, dan pengujian sehingga hubungan antara teori dan perilaku program dapat diperiksa kembali.
+
+| Persyaratan | Pemenuhan dalam sistem |
+|---|---|
+| Minimal dua materi | Penjadwalan CPU dan Producer–Consumer |
+| Tujuan pendidikan | Contoh kecil, Gantt chart, pemutaran log buffer |
+| Penjelasan materi | Aturan, rumus, analogi, batas model |
+| Dokumentasi | Arsitektur, input, screenshot dan pengujian |
+| Laporan minimal 20 halaman | Jumlah halaman PDF diperiksa setelah render |
+
+Simulator scheduling menggunakan satu CPU atau core konseptual. Setiap proses memiliki waktu datang dan satu burst CPU yang diketahui. Tidak ada operasi I/O di tengah pekerjaan, tidak ada biaya waktu context switch, dan tidak ada perubahan prioritas pada dua algoritma inti. Waktu berupa bilangan bulat dalam satuan simulasi; angka tersebut tidak dimaksudkan sebagai waktu aktual CPU laptop.
+
+Producer–Consumer utama menggunakan satu thread produsen dan satu thread konsumen dalam satu proses Python. Barang berupa label teks, bukan file atau pesan antarprogram. Kapasitas dan jumlah barang dibatasi agar percobaan singkat. Antarmuka memutar ulang hasil setelah thread selesai; kecepatan pemutaran dipisahkan dari waktu kejadian sebenarnya.
+
+Kode tambahan dari versi sebelumnya, termasuk algoritma scheduling lain dan modul deadlock, dipertahankan sebagai materi eksplorasi. Tautan menuju tampilan tambahan tersedia pada bagian bawah halaman. Materi tersebut tidak dipakai untuk memperluas klaim utama laporan. Dengan pembatasan ini, pembaca dapat memahami dua materi inti sebelum menjelajahi fitur yang lebih luas.
+
+### 1.4 Daftar istilah
+
+Laporan ini memakai beberapa istilah Sistem Operasi dalam bahasa Inggris karena istilah tersebut juga dipakai pada buku dan aplikasi. Tabel berikut menjelaskan artinya dengan bahasa sehari-hari. Penjelasan teknis yang lebih lengkap terdapat pada BAB II.
+
+| Istilah | Arti sederhana |
+|---|---|
+| Proses | Program yang sedang dijalankan oleh komputer |
+| CPU | Bagian komputer yang menjalankan instruksi; pada model ini hanya ada satu |
+| Scheduling (penjadwalan) | Aturan untuk memilih proses mana yang memakai CPU berikutnya |
+| Arrival (datang) | Waktu ketika proses mulai siap dan masuk antrean |
+| Burst (lama) | Berapa satuan waktu CPU yang dibutuhkan sebuah proses |
+| FCFS | First Come First Served: yang datang lebih dulu dilayani sampai selesai |
+| Round Robin (RR) | Proses bergiliran memakai CPU dengan jatah waktu yang sama |
+| Quantum | Panjang jatah waktu satu giliran pada Round Robin |
+| Gantt chart | Diagram batang yang menunjukkan proses mana memakai CPU dan kapan |
+| Waiting (tunggu) | Total waktu proses sudah siap tetapi belum memakai CPU |
+| Turnaround | Waktu dari proses datang sampai selesai |
+| Response (respons) | Waktu dari proses datang sampai pertama kali memakai CPU |
+| Context switch | Pergantian CPU dari satu proses ke proses lain |
+| IDLE | Waktu ketika CPU kosong karena belum ada proses yang datang |
+| Thread | Alur kerja di dalam satu program; beberapa thread dapat berjalan bergantian |
+| Buffer terbatas | Tempat penyimpanan sementara dengan jumlah slot tertentu |
+| Produsen dan konsumen | Thread yang memasukkan barang dan thread yang mengambil barang |
+| Critical section | Bagian program yang mengubah data bersama sehingga tidak boleh dikerjakan dua thread sekaligus |
+| Mutex | Kunci yang memastikan hanya satu thread mengubah buffer pada satu waktu |
+| Semaphore | Penghitung izin; thread menunggu jika izin habis |
+| empty dan full | Dua semaphore: jumlah slot kosong dan jumlah barang yang siap diambil |
+| Deadlock | Keadaan saling menunggu sehingga tidak ada pihak yang dapat melanjutkan |
+| Rekaman kejadian (log) | Daftar urutan peristiwa yang dicatat program beserta isi buffer saat itu |
+
+Sebagai gambaran, mutex dapat diibaratkan kunci satu-satunya untuk sebuah ruangan: siapa pun yang memegang kunci boleh masuk, yang lain menunggu. Semaphore dapat diibaratkan papan jumlah tempat parkir kosong: kendaraan boleh masuk selama angkanya lebih dari nol, dan angka bertambah lagi ketika ada kendaraan keluar.
+
+## BAB II LANDASAN TEORI
+
+### 2.1 Proses dan perubahan keadaan
+
+Program adalah kumpulan instruksi yang tersimpan, sedangkan proses adalah instans aktivitas eksekusinya. Model ini membantu menjelaskan mengapa satu program dapat dijalankan lebih dari sekali dengan keadaan kerja yang berbeda. CPU tidak hanya membutuhkan instruksi program, tetapi juga informasi tentang posisi eksekusi dan data yang sedang dikerjakan. Dalam teori penjadwalan, pekerjaan yang dapat memakai CPU dibedakan dari pekerjaan yang masih menunggu suatu kejadian [1].
+
+Lima keadaan yang lazim dipakai dalam model proses adalah new, ready, running, waiting, dan terminated. New menyatakan proses sedang dibentuk; ready menyatakan siap memperoleh CPU; running berarti instruksi sedang dijalankan; waiting berarti menunggu suatu kejadian; terminated berarti eksekusi selesai. Pembedaan ready dan waiting penting: keduanya tidak sedang memakai CPU, tetapi hanya proses ready yang dapat segera dipilih scheduler [7].
+
+```mermaid
+stateDiagram-v2
+    [*] --> New
+    New --> Ready
+    Ready --> Running: dipilih
+    Running --> Ready: dipotong
+    Running --> Waiting: I/O
+    Waiting --> Ready: I/O selesai
+    Running --> Terminated: selesai
+```
+Gambar 2.1 Model keadaan proses. Diagram disusun ulang untuk penjelasan konsep [7].
+
+Pada diagram, pemilihan scheduler memindahkan proses dari ready ke running. Proses yang dipotong dapat kembali ke ready, sedangkan proses yang meminta I/O dapat beralih ke waiting. Setelah kejadian yang ditunggu selesai, proses kembali menjadi ready; proses tersebut belum tentu langsung memperoleh CPU. Diagram menjelaskan model umum, bukan rekaman transisi yang seluruhnya diimplementasikan oleh aplikasi.
+
+Sebagai contoh dari data aplikasi, pada waktu satu P1 masih berjalan dan P2 sudah tiba. P2 berada pada keadaan siap menunggu giliran, bukan menunggu data dari perangkat I/O. Pada FCFS, P2 tetap siap sampai waktu lima. Pada Round Robin quantum dua, P1 kembali ke antrean setelah waktu dua, lalu P2 mulai berjalan. Contoh ini menghubungkan istilah ready dengan angka waktu tunggu yang muncul pada hasil.
+
+Model scheduling proyek tidak memasukkan transisi I/O ke waiting. Arrival menandai saat pekerjaan mulai siap, sedangkan completion menandai saat kebutuhan burst terpenuhi. Tidak ditampilkannya I/O merupakan pembatasan model agar perhitungan dapat diperiksa dengan contoh kecil. Keadaan menunggu semaphore pada modul Producer-Consumer adalah peristiwa thread nyata yang berbeda dari antrean siap pada simulator CPU.
+
+| Kejadian contoh | Interpretasi yang benar |
+|---|---|
+| P2 sudah datang tetapi P1 masih berjalan | P2 siap dan menunggu giliran CPU |
+| CPU belum memiliki proses yang datang | Interval IDLE pada model |
+| Konsumen belum memperoleh izin full | Thread menunggu izin barang |
+| Seluruh burst P3 telah dikerjakan | P3 selesai dalam model scheduling |
+
+Karena kedua modul memakai jenis waktu yang berbeda, angka arrival satu tidak berarti thread menunggu satu milidetik. Scheduling menggunakan jam abstrak; modul buffer merekam waktu eksekusi dengan perf_counter(). Pembedaan ini dipertahankan dalam tabel, grafik dan analisis agar kesimpulan dari kedua modul tidak dicampur menjadi ukuran kinerja komputer.
+
+### 2.2 PCB dan context switch
+
+Process Control Block atau PCB adalah struktur kernel yang menyimpan informasi terkait proses. Informasi tersebut antara lain keadaan, program counter, register CPU, informasi penjadwalan, pengelolaan memori, pencatatan penggunaan sumber daya dan status I/O. Ketika CPU berpindah proses, konteks yang diperlukan disimpan dan konteks proses berikutnya dipulihkan. Pergantian ini memerlukan pekerjaan sistem, sehingga waktunya merupakan overhead terhadap pekerjaan aplikasi [7].
+
+| Informasi konseptual | Mengapa diperlukan | Representasi pada simulator |
+|---|---|---|
+| Program counter dan register | Melanjutkan instruksi pada posisi yang tepat | Tidak diemulasikan |
+| Keadaan dan antrean | Mengetahui proses yang dapat dipilih | Antrean dan sisa burst |
+| Informasi memori dan I/O | Mengelola ruang alamat serta perangkat | Di luar model |
+| Identitas proses | Menghubungkan aktivitas dengan pekerjaan | pid/nama proses |
+| Penggunaan CPU | Mencatat pekerjaan yang telah dijalankan | Timeline dan metrik |
+
+Objek Process pada proyek bukan PCB kernel yang lengkap. Objek tersebut hanya menyimpan masukan yang diperlukan oleh algoritma: nama, waktu datang, burst, serta prioritas untuk modul tambahan. Round Robin juga menyimpan sisa burst dalam struktur data algoritma. Pemilihan informasi yang terbatas ini cukup untuk menghitung giliran tanpa meniru register mesin, tabel halaman, atau seluruh manajemen proses sistem operasi.
+
+Pada contoh P1 yang terpotong setelah dua satuan, simulator cukup mengingat bahwa sisa pekerjaannya tiga. Saat dipilih kembali, sisa itulah yang dikurangi. Sistem operasi nyata harus memulihkan konteks instruksi dan data yang lebih lengkap. Dengan demikian, penyimpanan sisa burst memperagakan kebutuhan mengingat kemajuan pekerjaan, tetapi tidak boleh disebut sebagai implementasi context switch kernel.
+
+Dalam program ini, satu pergantian dihitung setiap kali CPU berpindah langsung dari satu proses ke proses yang berbeda. Perpindahan ke atau dari IDLE tidak dihitung. Jadi, satu proses dengan burst lima dan quantum dua mendapat tiga giliran (dua, dua, satu), tetapi jumlah pergantiannya nol karena prosesnya tetap sama. Aturan hitung yang sama dipakai untuk FCFS dan Round Robin agar keduanya dapat dibandingkan. Simulator tidak menambahkan waktu biaya pergantian, sehingga total waktu contoh tetap sembilan untuk kedua algoritma.
+
+### 2.3 Kriteria penjadwalan
+
+Kriteria penjadwalan perlu dipilih sebelum membandingkan algoritma. Utilisasi menyatakan proporsi waktu CPU aktif; throughput menyatakan jumlah pekerjaan yang selesai per satuan waktu. Turnaround mengukur rentang dari kedatangan sampai selesai, waiting mengukur waktu dalam antrean siap, dan response berfokus pada respons pertama. Pembagian kriteria ini mengikuti pembahasan CPU scheduling pada sumber [8].
+
+| Kriteria | Arah yang biasanya diinginkan | Batas pembacaan hasil proyek |
+|---|---|---|
+| Utilisasi | Lebih tinggi | Rasio waktu aktif terhadap sumbu simulasi |
+| Throughput | Lebih banyak selesai per satuan waktu | Tidak diukur sebagai performa laptop |
+| Turnaround | Lebih pendek | Termasuk seluruh giliran proses |
+| Waiting | Lebih pendek | Rumus sederhana berlaku pada model tanpa I/O |
+| Response | Lebih pendek | Waktu sampai pertama memperoleh CPU |
+
+Perbedaan tujuan dapat menghasilkan pilihan yang berbeda. Pengguna aplikasi interaktif biasanya merasakan pentingnya respons awal, sedangkan suatu pekerjaan batch mungkin lebih menekankan waktu selesai. Laporan ini tidak memberi satu skor gabungan yang menyembunyikan perbedaan tersebut. Tiga rata-rata utama ditampilkan berdampingan agar perubahan ukuran dapat diperiksa secara terpisah.
+
+Pada data P1, P2, dan P3, FCFS dan RR quantum dua sama-sama menyelesaikan tiga pekerjaan dalam sembilan satuan tanpa waktu kosong. Rasio throughput model untuk keduanya adalah 3/9 pekerjaan per satuan waktu. Namun, respons rata-ratanya berbeda: 3,33 dan satu. Contoh ini memperlihatkan bahwa kesamaan throughput atau total waktu tidak menjamin pengalaman menunggu awal yang sama.
+
+Rata-rata juga perlu disertai hasil setiap proses. Pada contoh tersebut, waktu tunggu P1 meningkat dari nol menjadi empat ketika menggunakan RR, sedangkan P3 turun dari enam menjadi dua. Rata-rata tunggu keseluruhan tetap 3,33. Melihat rata-rata saja akan menyembunyikan distribusi perubahan tersebut. Oleh sebab itu, tabel hasil per proses merupakan bagian penting dari dokumentasi percobaan.
+
+Quantum yang kecil memberi kesempatan bergiliran lebih sering, tetapi dapat meningkatkan frekuensi perpindahan. Quantum yang cukup besar dapat membuat setiap burst contoh selesai pada giliran pertama sehingga hasilnya menyerupai FCFS [8]. Hubungan ini digunakan sebagai hipotesis yang diperiksa pada data aplikasi. Pemilihan quantum optimal untuk sistem nyata berada di luar penelitian ini karena biaya perpindahan, I/O dan beban dinamis tidak dimodelkan.
+
+### 2.4 First Come First Served
+
+First Come First Served memberi giliran kepada pekerjaan berdasarkan kedatangannya. Pekerjaan yang sudah mendapat CPU berjalan sampai selesai pada model nonpreemptive ini. Sifat sederhana tersebut memudahkan penelusuran, tetapi pekerjaan panjang yang berada di depan dapat membuat pekerjaan pendek menunggu. Pembahasan kebijakan dasar penjadwalan dan pengukuran turnaround dapat ditemukan pada OSTEP bab Scheduling Introduction [2]. Dalam kehidupan sehari-hari, FCFS mirip antrean kasir: pelanggan pertama dilayani sampai selesai walaupun pelanggan di belakangnya hanya membeli satu barang. Akibatnya, satu pekerjaan panjang di depan dapat membuat banyak pekerjaan pendek menunggu lama; gejala ini dikenal sebagai convoy effect.
+
+Implementasi fcfs() mengurutkan daftar proses dengan kunci pasangan arrival dan pid. Waktu datang merupakan kunci utama. Nama proses menjadi pemutus urutan ketika dua waktu datang sama. Aturan tambahan ini merupakan keputusan implementasi yang harus diketahui saat membandingkan hasil dengan perhitungan manual. Nama dibandingkan sebagai teks, sehingga P10 dapat berada sebelum P2.
+
+```text
+urutkan proses berdasarkan (arrival, nama)
+jam = 0
+untuk setiap proses:
+    jika jam < arrival: catat IDLE sampai arrival
+    mulai = maksimum(jam, arrival)
+    selesai = mulai + burst
+    catat segmen proses
+    jam = selesai
+```
+
+Pseudocode tersebut menjelaskan aturan program sendiri. Setiap proses menghasilkan satu segmen aktif. Jika ada jeda kedatangan, program menambahkan segmen IDLE sebelum proses berikutnya. Dengan demikian, grafik memuat waktu kosong sekaligus waktu kerja. Fungsi pembentuk metrik kemudian membaca timeline yang sama; frontend tidak menghitung ulang algoritma secara terpisah.
+
+Dalam demo, pengguna dapat mengubah lama P1 dari lima menjadi dua puluh empat untuk melihat dampak pekerjaan panjang. Nilai waktu tunggu proses berikutnya bertambah karena mereka belum memperoleh giliran. Fenomena yang diperlihatkan bukan kesalahan FCFS, melainkan akibat dari aturan tidak memotong pekerjaan aktif. Penjelasan ini penting agar pengguna membedakan perilaku algoritma dari bug implementasi.
+
+FCFS berguna sebagai acuan karena urutannya mudah diverifikasi dengan penjumlahan sederhana. Acuan ini dipakai pada pengujian manual sebelum membandingkannya dengan Round Robin. Aplikasi tidak menyatakan FCFS selalu buruk atau selalu terbaik; penilaian bergantung pada data dan ukuran yang ingin diperhatikan.
+
+### 2.5 Round Robin
+
+Round Robin membagi CPU dalam giliran dengan batas waktu yang disebut quantum. Proses yang belum selesai setelah satu giliran dimasukkan lagi ke belakang antrean. Dalam literatur penjadwalan, pembagian waktu ini berkaitan dengan tujuan respons yang lebih cepat serta biaya pergantian pekerjaan [2]. Simulator memperlihatkan pembagian giliran, tetapi tidak menambahkan durasi biaya perpindahan pada jam model. Cara ini mirip beberapa anak yang bergantian memakai satu mainan, masing-masing dua menit: yang belum puas kembali mengantre di belakang, sehingga tidak ada yang menunggu terlalu lama untuk giliran pertamanya.
+
+Fungsi round_robin() menyimpan sisa burst untuk setiap nama proses dan sebuah antrean siap. Lama satu giliran adalah nilai terkecil antara quantum dan sisa burst. Proses yang hanya memiliki satu satuan pekerjaan tersisa akan selesai dalam satu satuan walaupun quantum bernilai dua. Karena itu, tidak semua batang dalam Gantt chart harus memiliki lebar yang sama.
+
+```text
+masukkan proses yang sudah datang ke antrean
+selama masih ada pekerjaan:
+    bila antrean kosong: lompat ke kedatangan berikutnya
+    ambil proses dari depan antrean
+    durasi = minimum(quantum, sisa burst)
+    jalankan dan kurangi sisa burst
+    masukkan proses yang tiba sampai akhir giliran
+    jika proses belum selesai: antrekan kembali
+```
+
+Kedatangan tepat di batas quantum diterima sebelum proses aktif dimasukkan ulang. Sebagai contoh, jika P1 berjalan dari nol sampai dua dan P3 datang pada dua, P3 masuk bersama proses baru sebelum P1 kembali ke belakang. Aturan ini menentukan urutan contoh manual dan dilindungi oleh kasus uji khusus. Mengubahnya tanpa memperbarui penjelasan akan membuat hasil sulit dibandingkan.
+
+Batas setiap giliran tetap disimpan pada timeline walaupun hanya satu proses yang tersedia. Satu proses dengan burst lima dan quantum dua menghasilkan tiga giliran: dua, dua, dan satu. Namun, pergantian antarprosesnya nol karena identitas proses tidak berubah. Perbedaan antara habisnya quantum dan pergantian proses merupakan salah satu perbaikan penting proyek ini.
+
+Pengguna dapat mencoba quantum satu, dua, tiga, lalu lima pada contoh awal. Hasil percobaan memperlihatkan bahwa respons, waktu tunggu, dan jumlah pergantian tidak harus berubah dengan pola yang sama. Kesimpulan diambil dari tabel hasil per input, bukan dari anggapan bahwa quantum terkecil selalu paling baik.
+
+### 2.6 Definisi dan rumus metrik
+
+Metrik menjawab pertanyaan berbeda. Waktu selesai menjelaskan kapan pekerjaan berakhir. Turnaround mencakup seluruh rentang sejak kedatangan. Waktu tunggu hanya menghitung bagian rentang tersebut ketika proses belum memakai CPU dalam model tanpa I/O. Respons berfokus pada giliran pertama, sehingga berbeda dari waktu selesai untuk proses yang terpotong beberapa kali.
+
+| Ukuran | Rumus dalam program |
+|---|---|
+| Completion | Akhir segmen terakhir proses |
+| Turnaround | Completion dikurangi arrival |
+| Waiting | Turnaround dikurangi burst |
+| Response | Awal segmen pertama dikurangi arrival |
+| Rata-rata | Jumlah nilai semua proses dibagi jumlah proses |
+
+Contoh P2 pada FCFS: waktu datang satu, burst tiga, mulai lima, dan selesai delapan. Turnaround adalah tujuh. Dari tujuh satuan itu, tiga dipakai untuk bekerja sehingga empat sisanya adalah waktu tunggu. Karena hanya ada satu giliran, waktu tunggu dan respons sama-sama empat. Persamaan angka tersebut tidak berlaku umum untuk Round Robin.
+
+Pada Round Robin quantum dua, P2 mulai pada dua dan selesai pada delapan. Responsnya satu, tetapi total waktu tunggunya empat. P2 sempat bekerja, kembali mengantre, lalu bekerja lagi. Contoh ini menunjukkan mengapa satu angka saja tidak cukup untuk menggambarkan pengalaman suatu proses. Program menampilkan tiga rata-rata utama dan menyediakan detail per proses.
+
+Fungsi build_metrics() memperoleh waktu pertama dan terakhir dari timeline. Hasil numerik tidak berasal dari posisi visual batang atau lebar piksel. Rata-rata dibulatkan dua angka desimal untuk tampilan, sementara waktu tiap proses tetap berupa integer. Perbandingan manual menggunakan pecahan terlebih dahulu kemudian membulatkannya, sehingga tidak menumpuk kesalahan pembulatan dari langkah sebelumnya.
+
+Context switch pada laporan didefinisikan sebagai peralihan langsung antara dua proses yang berbeda. Dispatch pertama dan peralihan ke atau dari IDLE tidak dihitung. Definisi ini dijelaskan karena istilah yang sama dapat diberi batas pengukuran berbeda. Angka tersebut bukan pengukuran context switch sistem operasi laptop, dan tidak boleh dipakai untuk menghitung overhead nyata tanpa model tambahan.
+
+### 2.7 Thread dan data bersama
+
+Thread adalah alur eksekusi di dalam proses. Beberapa thread dalam proses yang sama dapat mengakses ruang data bersama. Hal ini memberi kesempatan bekerja secara konkuren, sekaligus menuntut koordinasi ketika beberapa thread mengakses data yang sama [3]. Pada proyek ini, data bersama tersebut adalah daftar barang dalam buffer.
+
+Tanenbaum membedakan pengelompokan sumber daya pada proses dari alur eksekusi thread. Thread dalam satu proses berbagi ruang alamat dan sumber daya seperti berkas terbuka, tetapi mempunyai keadaan eksekusi seperti program counter, register, dan stack masing-masing [10]. Pada aplikasi ini, daftar buffer merupakan data bersama, sedangkan pengulangan produksi dan konsumsi dijalankan oleh alur pekerja yang berbeda.
+
+Modul threading Python menyediakan Thread, Lock, Semaphore, dan Event. Thread menjalankan fungsi pekerja, Lock mengatur akses eksklusif, Semaphore mengatur izin yang dihitung, sedangkan Event digunakan untuk memberi sinyal pembatalan. Dokumentasi Python juga membedakan konkurensi thread dari kemampuan eksekusi paralel CPU pada build CPython yang menggunakan GIL [4]. Demo ini tidak digunakan sebagai benchmark peningkatan kecepatan komputasi.
+
+Produsen menjalankan loop untuk membuat label barang, menunggu jeda produksi, kemudian meminta buffer menerima barang tersebut. Konsumen mempunyai kuota pengambilan dan jeda konsumsi. Satu item memiliki identitas seperti item-1.3, yang menyatakan barang ketiga dari produsen pertama. Label ini membuat urutan barang dapat dibandingkan antara rekaman produksi dan konsumsi.
+
+| Bagian | Data atau tanggung jawab |
+|---|---|
+| Produsen | Membuat label dan meminta put |
+| Konsumen | Meminta get sesuai kuota |
+| BoundedBuffer | Menjaga isi, kapasitas dan semaphore |
+| Recorder | Menyimpan kejadian dan snapshot |
+| Pengendali percobaan | Memulai, menunggu dan membatalkan pekerja |
+
+Antarmuka utama menetapkan satu produsen dan satu konsumen agar hubungan sebab akibat mudah dilihat. Backend tetap mendukung beberapa pekerja untuk mempertahankan kemampuan tambahan dan menguji konsistensi pencatatan. Pengujian dengan banyak pekerja tidak mengubah materi utama; tujuannya membantu menemukan kesalahan yang mungkin tersembunyi pada urutan eksekusi sederhana.
+
+Sebutan IPC & Classical Problems pada tugas dipenuhi melalui masalah klasik Producer–Consumer dan mekanisme sinkronisasinya. Implementasinya tidak membuat dua proses OS yang terpisah, tidak menggunakan pipe antarprogram, dan tidak melakukan komunikasi jaringan antarpekerja. HTTP hanya menghubungkan antarmuka browser dengan server aplikasi. Batas ini dinyatakan agar konsep demonstrasi tidak salah dijelaskan saat presentasi.
+
+### 2.8 Syarat critical section
+
+Critical section adalah bagian program yang mengakses keadaan bersama dan perlu dikoordinasikan. Tiga syarat klasik solusi masalah critical section ialah mutual exclusion, progress, dan bounded waiting. Mutual exclusion melarang dua eksekusi berada pada bagian kritis yang sama secara bersamaan. Progress menuntut pemilihan peserta berikutnya tidak ditunda tanpa batas ketika bagian kritis kosong dan ada peserta yang ingin masuk. Bounded waiting membatasi berapa kali peserta lain boleh mendahului setelah permintaan masuk dibuat [9].
+
+| Syarat | Pertanyaan pemeriksaan | Hubungan dengan buffer |
+|---|---|---|
+| Mutual exclusion | Adakah dua pihak mengubah data bersama sekaligus? | Mutex mengelilingi daftar barang dan snapshot |
+| Progress | Dapatkah pekerjaan yang memenuhi syarat melanjutkan? | Penantian izin berlangsung di luar mutex |
+| Bounded waiting | Apakah jumlah pendahuluan dibatasi? | Tidak dibuktikan secara formal oleh pengujian ini |
+
+Contoh kesalahan yang harus dicegah adalah pola periksa-lalu-ubah tanpa perlindungan. Dua produsen dapat sama-sama membaca bahwa masih ada satu slot, kemudian keduanya menambahkan barang. Keputusan berdasarkan hasil pemeriksaan lama tidak lagi sesuai keadaan terbaru. Karena pemeriksaan dan tindakan dapat disela oleh pekerja lain, penggunaan variabel penghitung biasa saja tidak cukup untuk menyatakan izin secara aman.
+
+Pada implementasi ini, izin empty diperoleh lebih dahulu, kemudian penambahan item, pembaruan penghitung dan penyalinan snapshot dilakukan di dalam mutex. Pengamatan yang direkam menjadi satu rangkaian perubahan yang terlindungi. Konsumen melakukan urutan sepadan dengan full. Pengujian merekonstruksi daftar barang setelah setiap event untuk memastikan bahwa log dan keadaan yang diklaim saling sesuai.
+
+Urutan ini juga penting untuk mencegah deadlock. Jika produsen memegang mutex lalu menunggu slot kosong, konsumen tidak dapat masuk untuk mengambil barang, sehingga slot tidak pernah kosong dan keduanya saling menunggu selamanya. Karena itu, thread selalu menunggu izin semaphore lebih dahulu dan baru mengambil mutex setelah izinnya didapat.
+
+Ada satu batas yang perlu diketahui. Dokumentasi Python tidak menjamin urutan thread yang dibangunkan oleh Semaphore [4]. Akibatnya, jika ada banyak produsen atau konsumen, tidak dapat dipastikan siapa yang dilayani lebih dahulu. Masalah ketika suatu thread terus-menerus didahului oleh thread lain disebut starvation. Tampilan utama hanya memakai satu produsen dan satu konsumen, sehingga masalah ini tidak muncul pada demo inti.
+
+Hasil pengujian dapat dibaca dalam dua kelompok. Kelompok pertama adalah aturan yang harus selalu benar: kapasitas tidak terlampaui, barang tidak hilang, dan urutan keluar sama dengan urutan masuk (FIFO). Aturan ini diperiksa pada setiap langkah rekaman. Kelompok kedua adalah apakah semua thread selesai; hal ini teramati pada semua percobaan yang dicatat, tetapi tidak dibuktikan secara matematis untuk semua kemungkinan.
+
+### 2.9 Semaphore, mutex dan buffer terbatas
+
+Semaphore menyimpan jumlah izin yang tersedia. Operasi memperoleh izin dapat membuat pemanggil menunggu ketika izin belum tersedia. Operasi pelepasan mengembalikan izin. Pada masalah buffer terbatas, satu semaphore dapat mewakili slot kosong dan satu lagi barang yang siap diambil. Pola Producer–Consumer dengan semaphore dibahas pada OSTEP bab Semaphores [5]. Semaphore empty dapat dibayangkan sebagai papan jumlah tempat parkir kosong: produsen hanya boleh menaruh barang jika angkanya lebih dari nol. Semaphore full adalah kebalikannya, yaitu jumlah barang yang siap diambil konsumen.
+
+Mutex mempunyai tugas berbeda: melindungi critical section agar hanya satu thread mengubah data buffer pada satu waktu. Penggunaan lock di sekitar operasi terhadap data bersama membantu membuat rangkaian perubahan tersebut terlihat sebagai satu tindakan yang utuh terhadap thread lain [6]. Dalam proyek ini, perubahan isi dan perekaman snapshot berada dalam perlindungan yang sama.
+
+| Mekanisme | Nilai awal | Peran pada aplikasi |
+|---|---|---|
+| empty | Kapasitas buffer | Izin menaruh satu barang |
+| full | Nol | Izin mengambil satu barang |
+| mutex | Tidak terkunci | Melindungi isi dan snapshot |
+| cancel | Belum diset | Menghentikan pekerja jika gagal |
+
+Urutan operasi produsen adalah memperoleh izin empty, masuk ke mutex, menambahkan barang dan log, keluar dari mutex, lalu melepas izin full. Konsumen memperoleh full, masuk ke mutex, mengambil barang terdepan dan mencatat log, lalu melepas empty. Thread tidak menunggu izin empty atau full sambil memegang mutex. Pemisahan urutan ini memungkinkan pasangan pekerja tetap mengubah buffer saat pekerja pertama sedang menunggu.
+
+Aturan yang harus selalu benar pada buffer (disebut invariant) adalah jumlah barang tidak pernah kurang dari nol dan tidak pernah melebihi kapasitas. Tampilan tidak membaca angka semaphore untuk menunjukkan isi buffer, karena sebuah thread bisa saja sudah mengambil izin tetapi belum menaruh barang. Yang ditampilkan adalah salinan isi buffer (snapshot) yang diambil di dalam mutex, sehingga gambar selalu sesuai dengan isi buffer saat itu.
+
+Keadaan menunggu tidak otomatis berarti deadlock. Produsen yang menunggu slot dapat dilanjutkan setelah konsumen mengambil barang. Sebaliknya, konsumen dapat dilanjutkan setelah produsen memasukkan barang. Pemeriksaan akhir menuntut semua barang selesai dipindahkan dan seluruh thread berhenti. Jika batas waktu terlampaui, hasil ditandai gagal dan pekerja diberi sinyal pembatalan.
+
+### 2.10 Operasi wait dan signal
+
+Dalam naskah EWD123, Dijkstra menggunakan operasi P dan V pada semaphore. P mengurangi izin ketika pengurangan dapat dilakukan tanpa menghasilkan nilai negatif; jika belum dapat, penyelesaiannya menunggu. V menambah izin. Keputusan memperoleh izin dan perubahan nilainya harus dipandang sebagai operasi tak terpisahkan, sehingga dua pemanggil tidak memakai izin yang sama [11].
+
+Pseudocode berikut memakai nama wait (P) dan signal (V). Di Python, keduanya bernama acquire() dan release(). Kata atomik berarti langkah tersebut dikerjakan sekaligus tanpa bisa disela thread lain. Karena itu, semaphore tidak dapat diganti dengan variabel angka biasa yang diperiksa lalu diubah, sebab dua thread bisa membaca angka yang sama sebelum salah satunya sempat mengubahnya.
+
+```text
+wait(S):
+    secara atomik:
+        jika izin S tersedia: ambil satu izin dan kembali
+        jika tidak: daftarkan pemanggil untuk menunggu
+    pemanggil tidur sampai memperoleh izin
+
+signal(S):
+    secara atomik:
+        kembalikan satu izin
+        izinkan satu penunggu yang memenuhi syarat melanjutkan
+```
+
+Untuk buffer berkapasitas N, jumlah izin empty dimulai dari N dan full dari nol. Produsen memerlukan empty sebelum menaruh barang, lalu memberi full setelah barang sudah tersimpan. Konsumen memerlukan full sebelum mengambil barang, lalu memberi empty setelah slot sudah bebas. Mutex tetap diperlukan karena izin kapasitas tidak membuat rangkaian perubahan struktur data menjadi satu operasi atomik.
+
+```text
+produsen:                 konsumen:
+    buat barang               wait(full)
+    wait(empty)               lock(mutex)
+    lock(mutex)               ambil barang terdepan
+    masukkan barang           catat snapshot
+    catat snapshot            unlock(mutex)
+    unlock(mutex)             signal(empty)
+    signal(full)              olah barang
+```
+
+Contoh kapasitas dua dimulai dengan buffer kosong. Setelah satu barang masuk, terdapat satu barang yang dapat diambil. Setelah dua barang masuk, penambahan ketiga harus menunggu konsumen. Namun, pada saat sebuah pekerja sudah memperoleh izin tetapi belum masuk mutex, nilai semaphore tidak harus sama dengan jumlah item fisik. Karena alasan itu, aplikasi menampilkan snapshot daftar barang, bukan membaca nilai internal semaphore sebagai ukuran isi.
+
+Ketika buffer kosong, konsumen yang belum mendapat full menunggu perubahan yang dapat dilakukan produsen. Ketika penuh, produsen menunggu konsumen menyediakan slot. Keadaan ini adalah sinkronisasi normal selama pasangan pekerja dapat melanjutkan. Urutan yang keliru, misalnya mengunci mutex lalu menunggu empty pada buffer penuh, dapat mencegah konsumen melakukan pengambilan yang diperlukan. Perbedaan tersebut menjadi alasan penempatan operasi pada pseudocode.
+
+## BAB III PERANCANGAN SISTEM
+
+### 3.1 Arsitektur aplikasi
+
+Arsitektur dipisahkan menjadi tiga bagian: antarmuka, endpoint HTTP, dan modul algoritma. Pemisahan ini menjaga perhitungan tetap berada pada satu sumber. Browser menangani masukan dan tampilan, server memvalidasi permintaan, dan modul Python menghasilkan data simulasi. Tidak ada database karena seluruh percobaan dapat dijalankan dari parameter yang dimasukkan pengguna.
+
+```text
+Browser: HTML + CSS + JavaScript
+              | POST JSON
+              v
+Server lokal: validasi dan pemilihan modul
+              |
+       +------+----------------+
+       v                       v
+FCFS / Round Robin      Producer / Consumer
+       |                       |
+Timeline + metrik       Kejadian + snapshot
+       +-----------+-----------+
+                   v
+       JSON ke browser untuk ditampilkan
+```
+
+Endpoint /api/scheduling menerima daftar proses dan nama algoritma. Untuk perbandingan dua algoritma inti, antarmuka mengirim dua permintaan dengan data proses yang sama. Respons masing-masing berisi hasil tunggal. Pendekatan ini menggunakan kemampuan backend yang sudah ada tanpa memaksa halaman utama menampilkan seluruh algoritma tambahan.
+
+Endpoint /api/ipc/producer-consumer menjalankan percobaan sampai selesai atau sampai gagal. Respons memuat parameter, jumlah produksi dan konsumsi, isi tertinggi, kejadian menunggu, status thread, dan daftar kejadian. Setelah respons diterima, browser menyediakan kontrol pemutaran. Oleh karena itu, kelambatan pemutaran visual tidak memengaruhi penjadwalan thread pada percobaan yang sudah selesai.
+
+Server memakai ThreadingHTTPServer agar permintaan dapat ditangani oleh thread server. Thread server berbeda dari thread produsen dan konsumen yang dipakai dalam percobaan. Semua objek buffer dibuat untuk masing-masing pemanggilan run_demo(), sehingga dua percobaan tidak berbagi daftar barang yang sama. Data ekspor JSON diunduh ke pengguna melalui browser; aplikasi tidak mengirimkannya ke layanan luar.
+
+Berkas web disajikan dari direktori web. Dokumen laporan dan bukti pengujian berada di direktori terpisah dalam proyek. Dokumen tersebut dibuka melalui pengelola berkas. Pembatasan ini menjaga aplikasi tetap kecil serta membuat lokasi kode, dokumentasi, dan hasil percobaan mudah dikenali.
+
+### 3.2 Representasi proses dan waktu
+
+Subbab 2.1 menjelaskan proses secara teori. Subbab ini menjelaskan bagaimana proses dan waktu disimpan di dalam aplikasi, sehingga pembaca dapat menghubungkan angka pada layar dengan data yang diolah program.
+
+Pada aplikasi, proses direpresentasikan oleh objek Process. Objek ini menyimpan nama, arrival, burst, dan field prioritas untuk kompatibilitas dengan materi tambahan. FCFS dan Round Robin tidak menggunakan field prioritas. Nama dipakai untuk menghubungkan segmen pada grafik dengan baris hasil perhitungan. Karena itu, dua proses tidak boleh memiliki nama sama dalam satu percobaan.
+
+| Istilah | Makna pada model | Contoh |
+|---|---|---|
+| Nama proses | Identitas pekerjaan | P1 |
+| Arrival | Waktu pekerjaan siap | 0 |
+| Burst | Kebutuhan waktu CPU | 5 |
+| Segmen | Interval penggunaan CPU | P1 dari 0 sampai 5 |
+| IDLE | Tidak ada proses siap | CPU kosong 0 sampai 5 |
+
+Jam simulasi dimulai dari nol. Jika proses pertama baru datang pada waktu lima, interval nol sampai lima dicatat sebagai IDLE. Nama IDLE dikhususkan bagi keadaan ini dan ditolak sebagai nama proses pengguna. Pembatasan tersebut diperlukan karena penghitungan metrik dan pewarnaan grafik membedakan segmen proses dari segmen kosong berdasarkan penanda itu.
+
+Interval ditulis dengan awal termasuk dan akhir tidak termasuk, misalnya [0,5). Durasi interval adalah lima satuan. Dua interval yang berbatasan pada angka yang sama tidak berarti terjadi tumpang tindih. P1 dapat selesai pada waktu lima dan P2 mulai pada waktu lima. Penjelasan ini membantu membaca batas batang Gantt tanpa menghitung titik akhir dua kali.
+
+Tabel metrik diurutkan menurut nama proses untuk memudahkan pencarian. Urutan tabel tidak selalu sama dengan urutan eksekusi. Urutan eksekusi yang menjadi dasar perhitungan berada pada timeline. Pengguna sebaiknya membaca grafik terlebih dahulu sebelum membandingkan angka pada tabel.
+
+### 3.3 Kontrak masukan dan validasi
+
+Input yang tidak sesuai tidak boleh diam-diam berubah menjadi nilai lain. Misalnya, burst nol bukan pekerjaan selama satu satuan, dan angka 1,5 bukan otomatis satu. Versi akhir menolak input semacam itu dengan pesan yang menyebut kolom dan batas yang diperbolehkan. Validasi dilakukan di browser untuk kenyamanan dan di server karena endpoint tetap dapat dipanggil tanpa formulir.
+
+| Masukan | Batas inti | Penanganan |
+|---|---|---|
+| Jumlah proses | 1 sampai 12 | Tolak kosong/berlebihan |
+| Nama proses | 1 sampai 12 karakter | Tolak duplikat dan IDLE |
+| Waktu datang | 0 sampai 100 | Integer |
+| Lama proses | 1 sampai 50 | Integer positif |
+| Quantum | 1 sampai 20 | Integer positif |
+| Kapasitas buffer | 1 sampai 10 | Integer positif |
+| Jumlah barang | 1 sampai 12 | Integer positif |
+| Jeda pekerja | 0 sampai 100 ms | Integer pada API |
+
+Formulir utama menyediakan tiga pilihan jeda yang diminta pekerja: sepuluh, empat puluh, dan delapan puluh milidetik. Nilai ini tidak menjamin jarak waktu antarbarang sama persis dengan parameter. Pilihan bertuliskan cepat, sedang, dan lambat membantu pengguna menghubungkan nilai jeda dengan perilaku. API mempertahankan rentang yang lebih luas untuk pengujian. Jumlah produsen dan konsumen pada halaman utama tetap satu; parameter tambahan backend dibatasi antara satu dan lima.
+
+Server memeriksa bentuk data sebelum membaca setiap field. Daftar proses harus benar-benar berupa list yang tidak kosong, dan setiap elemennya harus berupa objek. Boolean tidak diterima sebagai angka walaupun bahasa Python memperlakukan bool sebagai turunan int. Pemeriksaan ini mencegah masukan seperti true lolos sebagai waktu satu pada API.
+
+Pada sisi browser, kolom angka dibaca sebagai integer utuh. Masukan kosong atau pecahan menampilkan kesalahan. Tombol dan kontrol formulir dinonaktifkan selama permintaan berjalan untuk menghindari perubahan konfigurasi yang membingungkan saat hasil sedang dihitung. Setelah selesai atau gagal, kontrol dipulihkan agar pengguna dapat memperbaiki masukan dan mengulang percobaan.
+
+Respons kesalahan input memakai status HTTP 400. Pesan ditampilkan dekat tombol pelaksanaan, bukan hanya pada console pengembang. Kondisi server tidak terhubung juga menghasilkan arahan untuk membuka aplikasi melalui launcher. Tujuannya agar pengguna awam dapat membedakan kesalahan input dari kondisi server yang belum berjalan.
+
+### 3.4 Rancangan Producer-Consumer
+
+BoundedBuffer menyimpan daftar items, kapasitas, dua semaphore dan mutex. Fungsi put() dan get() menjadi satu-satunya jalur perubahan daftar barang. Produsen tidak menambahkan barang secara langsung ke daftar, dan konsumen tidak mengambil barang tanpa memperoleh izin. Struktur ini memusatkan aturan buffer sehingga tidak tersebar di masing-masing pekerja.
+
+```text
+put(barang):
+    peroleh izin empty tanpa memegang mutex
+    dengan mutex:
+        tambahkan barang
+        naikkan jumlah produksi
+        catat kejadian dan salin isi buffer
+    lepaskan satu izin full
+
+get():
+    peroleh izin full tanpa memegang mutex
+    dengan mutex:
+        ambil barang terdepan
+        naikkan jumlah konsumsi
+        catat kejadian dan salin isi buffer
+    lepaskan satu izin empty
+```
+
+Metode _acquire() pertama mencoba memperoleh semaphore tanpa menunggu. Jika belum tersedia, kejadian BLOKIR dicatat, kemudian thread mencoba memperoleh izin dengan timeout singkat sambil memeriksa sinyal cancel. Setelah berhasil, kejadian LANJUT dicatat. Cara ini mempertahankan perilaku menunggu pada semaphore, sekaligus memungkinkan pembatalan kooperatif ketika percobaan harus dihentikan.
+
+Pengendali run_demo() menghitung total target produksi dan membagi kuota konsumsi. Pembagian kuota juga bekerja ketika jumlah konsumen lebih besar daripada barang: sebagian konsumen memperoleh kuota nol dan langsung selesai. Dengan jumlah barang yang diketahui, tidak ada konsumen yang sengaja menunggu barang tambahan setelah seluruh target selesai.
+
+Seluruh thread diberi satu batas waktu bersama, bukan masing-masing batas penuh yang akan menumpuk. Bila ada pekerja gagal, wrapper mencatat pesan kesalahan dan menyetel cancel. Jeda pekerja menggunakan Event.wait(), sehingga dapat dibangunkan saat pembatalan. Tes menyuntikkan kegagalan pada produsen untuk memeriksa bahwa konsumen tidak tertinggal menunggu tanpa akhir.
+
+Respons completed hanya bernilai benar jika tidak ada error, tidak ada thread yang masih aktif, dan produksi serta konsumsi sama dengan target. Antarmuka tidak menampilkan pesan berhasil hanya karena HTTP mengembalikan objek JSON. Pemisahan status transport dan status pekerjaan ini mencegah hasil parsial disalahartikan sebagai percobaan sukses.
+
+### 3.5 Pencatatan kejadian dan konsistensi data
+
+Visualisasi hanya berguna jika rekamannya menggambarkan keadaan secara konsisten. Pada versi awal, perubahan buffer dan pencatatan kejadian dilakukan dalam bagian terpisah. Di antara kedua bagian tersebut, thread lain dapat mengubah buffer atau menulis kejadian lebih dahulu. Walaupun operasi buffer terlindungi, urutan log berisiko tidak sesuai dengan urutan perubahan yang ingin dijelaskan.
+
+Perbaikan menempatkan perubahan barang, pembaruan jumlah, dan pembuatan snapshot di dalam mutex yang sama. Recorder tetap memiliki lock internal untuk melindungi daftar kejadian. Snapshot disalin menjadi list baru, sehingga perubahan buffer berikutnya tidak mengubah isi kejadian yang sudah direkam. Setiap kejadian memuat pelaku, tindakan, detail, ukuran, kapasitas, daftar barang dan timestamp.
+
+| Field kejadian | Kegunaan dalam pemeriksaan |
+|---|---|
+| actor dan action | Menjelaskan pelaku serta tindakan |
+| detail | Menunjukkan label barang atau alasan menunggu |
+| buffer_size | Memeriksa batas kapasitas |
+| items | Merekonstruksi isi buffer dan urutan FIFO |
+| t | Menunjukkan waktu pencatatan sejak awal run |
+
+Pengujian test_core.py tidak berhenti pada pemeriksaan ukuran paling besar. Tes merekonstruksi antrean dari seluruh aksi PRODUKSI dan KONSUMSI. Pada produksi, label baru ditambahkan; pada konsumsi, label harus sama dengan barang terdepan. Setelah setiap kejadian, antrean hasil rekonstruksi dibandingkan dengan snapshot items yang direkam. Dengan demikian, kesalahan urutan log dapat terdeteksi walaupun jumlah akhir barang tetap benar.
+
+Kejadian BLOKIR mempunyai batas penafsiran khusus. Upaya memperoleh semaphore terjadi sebelum snapshot menunggu dicatat. Thread lain dapat mengubah keadaan di antara keduanya. Karena itu, pesan mengatakan izin belum tersedia saat dicoba, bukan menjamin snapshot masih menunjukkan buffer tepat penuh atau kosong. Keterangan ini juga ditampilkan dalam bagian penjelasan tambahan antarmuka.
+
+Pemutaran browser memakai urutan array kejadian dan snapshot asli. Browser tidak menebak isi buffer dari panjang bar animasi, tidak menyusun ulang kejadian berdasarkan timestamp yang dibulatkan, dan tidak mengubah jumlah barang saat pengguna menekan Jeda. Dengan mempertahankan data sumber, tampilan dapat dipakai untuk menjelaskan hasil yang sama dengan berkas JSON ekspor.
+
+## BAB IV IMPLEMENTASI DAN PENGUJIAN
+
+### 4.1 Lingkungan dan prosedur pelaksanaan
+
+Aplikasi dijalankan dari folder proyek dengan mulai.bat pada Windows 64-bit. Launcher memakai Python lokal bila tersedia, kemudian menjalankan run.py. Terminal dibiarkan terbuka selama aplikasi dipakai. Browser mengakses http://127.0.0.1:8000. Jika port sudah digunakan aplikasi lain, mulai.bat --port 9000 menjalankan server pada port yang berbeda.
+
+| Kegiatan | Perintah |
+|---|---|
+| Membuka aplikasi | mulai.bat |
+| Menggunakan port lain | mulai.bat --port 9000 |
+| Menjalankan pengujian | mulai.bat test |
+| Menghasilkan percobaan | python scripts/collect_evidence.py |
+
+Runtime Python 3.13.1 Windows 64-bit disertakan dalam paket. Kode aplikasi menggunakan pustaka standar, sedangkan ReportLab dan PyMuPDF dipakai hanya untuk pembuatan laporan serta Playwright untuk pengujian browser. Ketergantungan tooling tidak diperlukan ketika aplikasi dijalankan. Pengujian inti memakai lingkungan Windows dan Chrome; panduan menyertakan cara menggunakan Python yang telah terpasang apabila runtime portable tidak digunakan.
+
+Data percobaan diperoleh dari fungsi yang sama dengan endpoint aplikasi. Dataset untuk laporan ditetapkan pada experiments.json, sedangkan screenshot berasal dari eksekusi browser tersendiri. Penetapan ini menjaga tabel hasil dapat ditelusuri ke data asal tanpa menyamakan semua percobaan thread dengan satu urutan yang harus selalu identik.
+
+### 4.2 Antarmuka penjadwalan CPU
+
+Halaman scheduling memisahkan pengaturan di sebelah kiri dan hasil di sebelah kanan pada layar desktop. Pengguna memilih FCFS, Round Robin, atau perbandingan keduanya. Quantum hanya ditampilkan ketika relevan. Kolom prioritas tidak ditampilkan pada halaman utama karena tidak dipakai oleh dua algoritma inti. Tiga proses contoh sudah tersedia, tetapi perhitungan baru berjalan setelah pengguna menekan tombol.
+
+![Gambar 4.1 Hasil FCFS pada contoh tiga proses yang dijalankan di browser](evidence/detail-fcfs.png)
+
+Hasil menempatkan Gantt chart sebelum angka, sehingga pengguna melihat urutan pekerjaan terlebih dahulu. Rata-rata menunggu, turnaround, dan respons kemudian ditampilkan sebagai tiga ukuran utama. Tabel di bawahnya memungkinkan pengguna memeriksa angka setiap proses. Detail perhitungan dan log keputusan disimpan di bagian yang dapat dibuka tanpa memenuhi layar awal dengan seluruh penjelasan.
+
+Saat grafik panjang, area grafik dapat digeser mendatar tanpa menyebabkan seluruh halaman melebar. Warna proses konsisten di dalam hasil dan label nama tetap tersedia. Penjelasan angka disajikan dalam bahasa Indonesia. Tombol simpan hasil JSON menyediakan data yang dapat digunakan untuk dokumentasi atau pemeriksaan ulang. Screenshot ini berasal dari aplikasi yang berjalan, bukan rancangan tampilan sebelum implementasi.
+
+### 4.3 Antarmuka Producer-Consumer
+
+Halaman Producer–Consumer menampilkan kontrol kapasitas, jumlah barang, dan kecepatan dua pekerja. Tombol preset produsen lebih cepat dan konsumen lebih cepat memudahkan penggantian skenario. Setelah percobaan selesai, hasil menampilkan tempat penyimpanan berbentuk kotak dan tombol Sebelumnya, Putar ulang, serta Berikutnya. Slider dapat dipakai untuk langsung memilih posisi rekaman.
+
+![Gambar 4.2 Pemutaran rekaman buffer dari percobaan thread nyata](evidence/detail-buffer.png)
+
+Kotak berwarna memuat label barang, sementara tempat kosong diberi teks kosong. Bagian kejadian menjelaskan siapa melakukan apa, nomor langkah, dan timestamp asli. Pemutaran otomatis berpindah setiap 0,6 detik agar kejadian dapat diikuti. Antarmuka menyatakan bahwa ini pemutaran ulang setelah percobaan selesai sehingga pengguna tidak menyamakan animasi dengan streaming eksekusi thread.
+
+Ringkasan hasil akhir ditempatkan terpisah dari keadaan buffer pada langkah terpilih. Dengan demikian, angka delapan barang selesai tidak dimaksudkan sebagai jumlah barang di dalam buffer saat slider berada di tengah rekaman. Informasi menunggu dan jumlah thread belum selesai membantu menilai akhir percobaan. Pada ponsel, pengaturan dan hasil ditumpuk secara vertikal, sedangkan kotak buffer tetap berada dalam lebar layar.
+
+### 4.4 Strategi dan cakupan pengujian
+
+Pengujian dilakukan pada beberapa lapisan karena keberhasilan satu lapisan tidak membuktikan keberhasilan lapisan lain. Fungsi dapat menghasilkan angka benar tetapi frontend gagal menampilkan respons. Sebaliknya, tampilan dapat terlihat rapi walaupun rumusnya salah. Oleh karena itu, pengujian manual, fungsi, HTTP dan browser digunakan untuk menjawab pertanyaan yang berbeda.
+
+| Lapisan | Jumlah yang dicatat | Hasil |
+|---|---|---|
+| HTTP dan modul tambahan | 59 pemeriksaan pada test_api.py | Lulus |
+| Scheduling lama | 20 pemeriksaan pada test_scheduling.py | Lulus |
+| Regresi inti | 21 kasus unittest pada test_core.py | Lulus |
+| Browser | 20 alur pemeriksaan | Lulus |
+| Percobaan buffer laporan | 15 run pada tiga skenario | Selesai; aturan buffer terpenuhi |
+
+Satu kasus unittest dapat berisi beberapa pemeriksaan kecil, sehingga angka pada setiap baris tidak dijumlahkan menjadi satu total. Catatan asli setiap pengujian disimpan pada folder docs/evidence.
+
+Tes scheduling membandingkan timeline dan metrik terhadap hasil manual, memeriksa kedatangan tepat pada batas quantum, quantum besar yang menyamai FCFS, kasus idle, nama ganda, nama IDLE, dan quantum tidak valid. Tes buffer memeriksa dua perbedaan kecepatan, banyak pekerja, konsumen lebih banyak daripada barang, serta kegagalan dan timeout. Jalur pembatalan diuji agar tidak hanya jalur sukses yang mendapat perhatian.
+
+Pengujian browser dijalankan otomatis dengan Chrome tanpa jendela (headless) pada ukuran layar laptop 1440 × 1080 dan ponsel 390 × 844. Alur yang diperiksa mencakup FCFS, Round Robin, perbandingan, input salah, tambah dan hapus proses, simpan hasil JSON, pemutaran rekaman, tombol kecepatan, materi tambahan, dan tampilan yang tidak melebar keluar layar. Tidak ada error JavaScript yang muncul selama pengujian.
+
+Pengujian dilakukan pada Windows dan Chrome. Browser dan sistem operasi lain belum dicoba. Proyek ini juga tidak mengukur apakah mahasiswa menjadi lebih paham setelah memakai aplikasi; hasil pengujian hanya menunjukkan bahwa aplikasi berjalan sesuai rancangan.
+
+### 4.5 Verifikasi manual FCFS
+
+Data contoh terdiri dari tiga proses. P1 datang pada nol dengan kebutuhan CPU lima, P2 datang pada satu dengan kebutuhan tiga, dan P3 datang pada dua dengan kebutuhan satu. Semua proses menggunakan nama unik. FCFS mempertahankan P1 sampai selesai sehingga kedatangan P2 dan P3 tidak memotong pekerjaan P1.
+
+| Proses | Datang | Lama CPU |
+|---|---|---|
+| P1 | 0 | 5 |
+| P2 | 1 | 3 |
+| P3 | 2 | 1 |
+
+P1 mulai pada nol dan selesai pada lima. Pada waktu lima, P2 sudah menunggu sejak satu dan P3 sejak dua. P2 datang lebih awal sehingga mendapat giliran kedua, berjalan sampai delapan. P3 lalu memakai CPU selama satu satuan dan selesai pada sembilan. Tidak ada interval idle karena selalu ada pekerjaan yang tersedia setelah P1 mulai.
+
+```text
+P1 0-5 | P2 5-8 | P3 8-9
+```
+
+| Proses | Selesai | Tunggu | Turnaround | Respons |
+|---|---|---|---|---|
+| P1 | 5 | 0 | 5 | 0 |
+| P2 | 8 | 4 | 7 | 4 |
+| P3 | 9 | 6 | 7 | 6 |
+
+Untuk P1, turnaround lima dikurangi nol menghasilkan lima, kemudian dikurangi burst lima menghasilkan waktu tunggu nol. Untuk P2, turnaround delapan dikurangi satu menghasilkan tujuh; waktu tunggu tujuh dikurangi tiga adalah empat. Untuk P3, turnaround sembilan dikurangi dua menghasilkan tujuh; waktu tunggu tujuh dikurangi satu adalah enam.
+
+Jumlah waktu tunggu adalah sepuluh, sehingga rata-ratanya sepuluh dibagi tiga atau 3,33 setelah pembulatan. Jumlah turnaround adalah sembilan belas sehingga rata-ratanya 6,33. Karena setiap proses hanya memiliki satu giliran aktif, respons sama dengan waktu tunggu pada contoh ini. Pergantian terjadi dari P1 ke P2, lalu P2 ke P3, sehingga jumlahnya dua.
+
+Nilai manual ini dijadikan expected result pada test_core.py. Pemeriksaan membandingkan seluruh urutan segmen dan metrik tiap proses, bukan hanya memeriksa bahwa respons API memiliki field. Dengan demikian, perubahan implementasi yang tetap menghasilkan JSON tetapi mengubah urutan atau angka akan terdeteksi pada contoh ini.
+
+### 4.6 Verifikasi manual Round Robin
+
+Contoh yang sama dijalankan dengan quantum dua. P1 memperoleh giliran pertama dari nol sampai dua dan masih mempunyai tiga satuan pekerjaan. Pada waktu dua, P2 dan P3 sudah datang. Keduanya masuk antrean sebelum P1 dikembalikan ke belakang. Antrean berikutnya adalah P2, P3, P1.
+
+| Giliran | Proses | Interval | Sisa setelah giliran |
+|---|---|---|---|
+| 1 | P1 | 0–2 | 3 |
+| 2 | P2 | 2–4 | 1 |
+| 3 | P3 | 4–5 | 0 |
+| 4 | P1 | 5–7 | 1 |
+| 5 | P2 | 7–8 | 0 |
+| 6 | P1 | 8–9 | 0 |
+
+P2 memakai dua satuan pada giliran kedua dan tersisa satu. P3 hanya memerlukan satu satuan sehingga selesai pada waktu lima. P1 kemudian menggunakan dua satuan lagi, diikuti P2 yang menyelesaikan satu satuan terakhir. Terakhir, P1 menyelesaikan sisa pekerjaannya pada waktu sembilan.
+
+| Waktu akhir | Proses baru selesai giliran | Antrean berikutnya |
+|---|---|---|
+| 2 | P1, sisa 3 | P2, P3, P1 |
+| 4 | P2, sisa 1 | P3, P1, P2 |
+| 5 | P3 selesai | P1, P2 |
+| 7 | P1, sisa 1 | P2, P1 |
+| 8 | P2 selesai | P1 |
+| 9 | P1 selesai | Kosong |
+
+| Proses | Selesai | Tunggu | Turnaround | Respons |
+|---|---|---|---|---|
+| P1 | 9 | 4 | 9 | 0 |
+| P2 | 8 | 4 | 7 | 1 |
+| P3 | 5 | 2 | 3 | 2 |
+
+![Gambar 4.3 Hasil Round Robin quantum 2 pada contoh yang sama di browser](evidence/detail-rr.png)
+
+P1 selesai pada sembilan, sehingga turnaround sembilan dan waktu tunggu empat. P2 tetap selesai pada delapan dengan turnaround tujuh dan waktu tunggu empat. P3 selesai lebih cepat, pada lima, dengan turnaround tiga dan waktu tunggu dua. Total waktu tunggu masih sepuluh, sama dengan FCFS pada data ini, walaupun pembagiannya berubah.
+
+Waktu pertama berjalan adalah nol untuk P1, dua untuk P2, dan empat untuk P3. Setelah dikurangi waktu datang masing-masing, responsnya nol, satu, dan dua. Rata-ratanya satu, lebih kecil daripada respons FCFS 3,33 pada contoh yang sama. Ada enam segmen aktif dengan pergantian identitas pada setiap batas, sehingga lima pergantian antarproses dihitung.
+
+Kasus ini juga memverifikasi kedatangan tepat pada batas quantum: P3 datang pada waktu dua. Tes mengharuskan urutan tersebut tetap sesuai aturan yang didokumentasikan. Perbandingan ini memberi alasan konkret mengapa respons dapat membaik tanpa perubahan rata-rata waktu tunggu pada dataset tertentu.
+
+### 4.7 Pengaruh quantum
+
+Percobaan mengubah quantum dengan data P1, P2 dan P3 yang sama. Nilai quantum yang digunakan adalah satu, dua, tiga, lima, sepuluh dan dua puluh. Semua hasil berikut berasal dari scripts/collect_evidence.py dan tersimpan pada docs/evidence/experiments.json. Setiap perubahan parameter dilakukan pada fungsi yang sama dengan fungsi yang dipanggil endpoint aplikasi.
+
+| Quantum | Tunggu | Turnaround | Respons | Pergantian |
+|---|---|---|---|---|
+| 1 | 2,67 | 5,67 | 0,33 | 7 |
+| 2 | 3,33 | 6,33 | 1,0 | 5 |
+| 3 | 3,33 | 6,33 | 2,0 | 3 |
+| 5 | 3,33 | 6,33 | 3,33 | 2 |
+| 10 | 3,33 | 6,33 | 3,33 | 2 |
+| 20 | 3,33 | 6,33 | 3,33 | 2 |
+
+Pada quantum satu, rata-rata respons adalah 0,33 dan terdapat tujuh pergantian antarproses. Quantum dua menghasilkan respons satu dengan lima pergantian. Quantum tiga memberi respons dua dengan tiga pergantian. Untuk quantum lima atau lebih besar, setiap burst contoh dapat selesai pada giliran pertama sehingga urutan dan metriknya sama dengan FCFS.
+
+Rata-rata waktu tunggu pada quantum satu adalah 2,67, sedangkan pada quantum dua dan tiga nilainya 3,33. Angka tersebut merupakan hasil dari susunan kedatangan dan panjang pekerjaan tertentu. Nilai ini tidak membuktikan bahwa quantum satu akan selalu meminimalkan waktu tunggu pada dataset lain. Pengguna dapat mengganti input untuk menguji apakah pola yang sama masih terjadi.
+
+Total waktu simulasi tetap sembilan untuk seluruh percobaan karena jumlah burst sembilan, tidak ada idle, dan model tidak menambahkan overhead. Karena itu, tabel tidak dapat digunakan untuk menyimpulkan quantum kecil tidak memiliki biaya di sistem nyata. Peningkatan jumlah pergantian menunjukkan perubahan frekuensi peralihan, sedangkan durasi biaya peralihan berada di luar cakupan model.
+
+Perbandingan harus menyatakan ukuran dan dataset secara bersamaan. Pada tiga proses contoh, quantum dua memperbaiki rata-rata respons dibanding FCFS, sementara rata-rata waktu tunggu sama. Hasil ini menunjukkan bahwa perubahan respons tidak selalu diikuti perubahan rata-rata tunggu. Kesimpulan tetap dibatasi pada parameter percobaan yang dicatat.
+
+### 4.8 Pekerjaan panjang dan waktu idle
+
+Dua kasus tambahan membantu memeriksa batas perilaku model. Kasus pertama menempatkan pekerjaan panjang di depan dua pekerjaan pendek yang datang bersamaan. P1 memerlukan dua puluh empat satuan, sedangkan P2 dan P3 masing-masing memerlukan tiga. Karena waktu datang sama, nama proses menentukan urutan awal.
+
+| Algoritma | Rata-rata tunggu | Rata-rata respons | Pergantian |
+|---|---|---|---|
+| fcfs | 17,0 | 17,0 | 2 |
+| rr2 | 6,33 | 2,0 | 6 |
+
+Pada FCFS, P2 menunggu dua puluh empat dan P3 menunggu dua puluh tujuh satuan. Rata-rata waktu tunggu menjadi tujuh belas. Angka tersebut dapat diperoleh tanpa membaca kode: cukup jumlahkan lama pekerjaan yang berada di depan masing-masing proses. Pada RR quantum dua, kedua proses pendek dapat memperoleh CPU sebelum pekerjaan panjang selesai. Hasil tabel menunjukkan perubahan pengalaman menunggu dan memperoleh giliran pertama pada konfigurasi tersebut.
+
+Kasus kedua hanya memiliki P1 yang baru datang pada waktu lima dan membutuhkan tiga satuan CPU. Program mencatat IDLE dari nol sampai lima, kemudian P1 dari lima sampai delapan. Waktu tunggu dan respons P1 nol karena tidak ada proses lain yang mendahuluinya ketika sudah datang. Turnaround P1 adalah tiga, bukan delapan.
+
+| Ukuran kasus idle | Nilai |
+|---|---|
+| Waktu total | 8 |
+| Waktu CPU aktif | 3 |
+| Utilisasi model | 37,5% |
+| Rata-rata tunggu | 0 |
+| Pergantian antarproses | 0 |
+
+Perbedaan antara total waktu dan turnaround penting untuk mencegah salah tafsir. Total waktu diukur sejak awal sumbu simulasi nol, sedangkan turnaround diukur sejak kedatangan suatu proses. Utilisasi model pada contoh ini adalah tiga dibagi delapan, atau 37,5 persen. Ini sekadar rasio waktu aktif terhadap rentang model, bukan pengukuran Task Manager.
+
+Pengujian juga mencakup jeda di antara dua proses. Peralihan dari proses ke IDLE lalu ke proses berikutnya tidak masuk hitungan pergantian langsung antarproses sesuai definisi laporan. Dengan mencatat aturan tersebut, hasil idle dan hasil tanpa idle tetap dapat dibandingkan secara konsisten.
+
+### 4.9 Percobaan produsen lebih cepat
+
+Konfigurasi percobaan ini menggunakan kapasitas lima, delapan barang, satu produsen dan satu konsumen. Jeda produsen sepuluh milidetik dan jeda konsumen delapan puluh milidetik. Setiap skenario dijalankan lima kali. Data pada tabel adalah hasil run_demo() yang benar-benar dijalankan, bukan contoh angka yang diketik untuk menggambarkan perilaku.
+
+| Ulangan | Dibuat | Diambil | Isi puncak | Tunggu prod. | Tunggu kons. |
+|---|---|---|---|---|---|
+| 1 | 8 | 8 | 5 | 2 | 0 |
+| 2 | 8 | 8 | 5 | 2 | 0 |
+| 3 | 8 | 8 | 5 | 2 | 0 |
+| 4 | 8 | 8 | 5 | 2 | 0 |
+| 5 | 8 | 8 | 5 | 2 | 0 |
+
+Produsen mampu mencoba memasukkan barang lebih sering daripada konsumen mengambilnya. Isi buffer kemudian bertambah sampai kapasitasnya tercapai. Setelah tidak memperoleh izin empty, produsen menunggu. Konsumen yang mengambil barang melepaskan izin empty sehingga produsen dapat melanjutkan. Pada semua ulangan yang dicatat, isi tertinggi mencapai lima dan tidak melampaui kapasitas.
+
+Semua ulangan berakhir dengan delapan barang diproduksi dan delapan barang dikonsumsi. Sisa buffer nol dan daftar thread yang belum selesai kosong. Hasil tersebut menunjukkan bahwa jeda menunggu tidak menghilangkan barang. Produsen tetap menyelesaikan targetnya setelah tersedia kesempatan untuk menaruh barang berikutnya.
+
+Jumlah kejadian menunggu adalah hitungan upaya memperoleh izin yang sempat gagal, bukan durasi total menunggu. Satu kejadian BLOKIR dapat diikuti interval waktu yang panjang atau pendek. Karena itu, angka dua kejadian menunggu tidak boleh dibaca sebagai dua milidetik.
+
+Screenshot pada subbab 4.3 diambil dari percobaan lain, sehingga jumlah menunggunya bisa berbeda dari tabel ini. Hal ini wajar karena thread dijalankan oleh komputer secara nyata; angka tabel tetap memakai data percobaan yang disimpan.
+
+Demo ini cocok untuk menjelaskan fungsi pembatasan kapasitas. Tanpa izin slot, menambah barang terus-menerus akan bertentangan dengan model buffer terbatas. Sistem memilih menunda produsen sampai terdapat ruang, sehingga kapasitas tetap dipatuhi selama proses produksi dan konsumsi.
+
+### 4.10 Percobaan konsumen lebih cepat
+
+Pada skenario kedua, jeda produsen diubah menjadi delapan puluh milidetik dan jeda konsumen menjadi sepuluh milidetik. Parameter lain tetap sama. Perubahan satu pasangan jeda ini menjaga perbandingan tetap mudah dipahami: jumlah barang dan kapasitas tidak berubah, tetapi pekerja yang lebih sering siap melakukan tindakan berganti.
+
+| Ulangan | Dibuat | Diambil | Isi puncak | Tunggu prod. | Tunggu kons. |
+|---|---|---|---|---|---|
+| 1 | 8 | 8 | 1 | 0 | 8 |
+| 2 | 8 | 8 | 1 | 0 | 8 |
+| 3 | 8 | 8 | 1 | 0 | 8 |
+| 4 | 8 | 8 | 1 | 0 | 8 |
+| 5 | 8 | 8 | 1 | 0 | 8 |
+
+Konsumen mencoba mengambil barang sebelum produsen sempat menyediakan barang berikutnya. Karena full belum memberi izin, konsumen menunggu. Setelah produsen memasukkan satu barang, izin full dilepas dan konsumen dapat melanjutkan. Pada ulangan yang tercatat, puncak isi buffer satu karena barang segera diambil sebelum sempat terjadi penumpukan yang lebih besar.
+
+Walaupun konsumen lebih cepat, jumlah konsumsi tidak boleh melampaui jumlah barang yang diproduksi. Konsumen tidak membuat barang baru dan tidak mengambil nilai dari daftar kosong. Sifat tersebut diperiksa melalui urutan label barang: label yang diambil harus sama dengan label pertama dalam antrean hasil produksi pada saat itu.
+
+Semua percobaan selesai dengan target delapan barang. Hasil ini menunjukkan perbedaan antara kemampuan mencoba lebih sering dan keberadaan barang yang dapat diambil. Kecepatan konsumen saja tidak cukup untuk meningkatkan jumlah hasil akhir ketika produsen masih menyediakan barang secara bertahap. Pengguna dapat melihat alasan menunggu langsung pada pesan kejadian di pemutaran ulang.
+
+Kondisi konsumen menunggu tidak diberi warna kegagalan pada aplikasi karena merupakan bagian normal dari mekanisme sinkronisasi. Pesan gagal hanya digunakan untuk input tidak valid, server yang tidak terhubung, atau percobaan yang tidak selesai. Pemilihan bahasa antarmuka ini membantu menghindari pemahaman bahwa semua bentuk blocking merupakan kesalahan.
+
+Perbandingan kedua skenario memperlihatkan pembagian tanggung jawab semaphore: empty berkaitan dengan kesempatan produsen menaruh barang, sedangkan full berkaitan dengan kesempatan konsumen mengambil barang. Mutex tetap dibutuhkan pada kedua skenario karena melindungi perubahan daftar dan snapshot terlepas dari pihak mana yang sedang lebih cepat.
+
+### 4.11 Jeda sama dan variasi thread
+
+Skenario ketiga memberikan jeda empat puluh milidetik kepada kedua pekerja. Secara parameter, produsen dan konsumen mempunyai jeda yang sama. Namun, kesamaan jeda tidak memaksa keduanya dieksekusi dalam urutan yang persis sama pada setiap percobaan. Awal thread, waktu bangun, perolehan lock, dan penjadwalan oleh lingkungan eksekusi masih dapat berbeda.
+
+| Ulangan | Dibuat | Diambil | Isi puncak | Tunggu prod. | Tunggu kons. |
+|---|---|---|---|---|---|
+| 1 | 8 | 8 | 1 | 0 | 4 |
+| 2 | 8 | 8 | 1 | 0 | 6 |
+| 3 | 8 | 8 | 1 | 0 | 2 |
+| 4 | 8 | 8 | 1 | 0 | 4 |
+| 5 | 8 | 8 | 1 | 0 | 3 |
+
+Tabel menunjukkan jumlah barang akhir selalu sama, sedangkan jumlah kejadian konsumen menunggu berubah-ubah antara dua dan enam. Perbedaan ini terjadi karena sistem operasi bebas menentukan kapan masing-masing thread dijalankan, sehingga urutan selang-seling kerja produsen dan konsumen (disebut interleaving) dapat berbeda setiap kali. Karena itu, pengujian memeriksa hal yang wajib selalu benar, yaitu kapasitas, label barang, urutan FIFO, dan semua thread selesai, bukan waktu persis setiap kejadian.
+
+Di sinilah perbedaan kedua modul terlihat. Modul scheduling adalah perhitungan, sehingga data yang sama selalu menghasilkan Gantt chart yang sama. Modul Producer–Consumer menjalankan thread sungguhan, sehingga urutan detailnya dapat berubah. Perilaku ini sengaja dipertahankan karena memang itulah sifat program yang memakai thread.
+
+Seluruh lima belas percobaan buffer yang dicatat berhasil memindahkan delapan barang, berakhir dengan buffer kosong, dan tidak menyisakan thread yang masih berjalan. Jika percobaan diulang di laptop lain, jumlah menunggu dan waktunya boleh berbeda, tetapi aturan buffer di atas harus tetap terpenuhi. Angka pada scheduling berupa satuan waktu simulasi, sedangkan waktu pada buffer berupa milidetik nyata, sehingga keduanya tidak dibandingkan secara langsung.
+
+### 4.12 Jeda masukan dan interval kejadian aktual
+
+Pilihan kecepatan cepat pada aplikasi berarti produsen diminta beristirahat sepuluh milidetik sebelum membuat barang berikutnya. Namun, jarak waktu antara dua barang yang tercatat ternyata lebih panjang dari sepuluh milidetik. Hal ini terjadi karena setelah beristirahat, thread masih harus menunggu giliran dijalankan oleh sistem operasi, mengambil izin dan kunci, mengubah buffer, lalu mencatat kejadian. Jadi, angka jeda adalah permintaan istirahat, bukan jaminan jarak antarbarang [4].
+
+Untuk melihat besarnya selisih tersebut, dihitung jarak waktu antara lima barang pertama yang dibuat pada setiap percobaan produsen cepat, sehingga diperoleh empat jarak per percobaan. Waktu diambil dari rekaman kejadian yang tersimpan; data percobaan asli tidak diubah.
+
+| Run | Jeda diminta | Interval minimum | Interval maksimum | Rata-rata interval |
+|---|---|---|---|---|
+| 1 | 10 ms | 15,29 ms | 21,82 ms | 17,72 ms |
+| 2 | 10 ms | 15,02 ms | 18,53 ms | 16,84 ms |
+| 3 | 10 ms | 15,42 ms | 17,55 ms | 16,41 ms |
+| 4 | 10 ms | 14,54 ms | 17,22 ms | 15,83 ms |
+| 5 | 10 ms | 15,84 ms | 16,6 ms | 16,28 ms |
+
+Kedua puluh jarak tersebut berada antara 14,54 dan 21,82 ms, semuanya lebih panjang dari sepuluh milidetik yang diminta. Pengukuran ini menunjukkan adanya selisih, tetapi tidak memisahkan penyebabnya satu per satu, misalnya ketelitian timer Windows atau waktu yang dipakai untuk mencatat kejadian.
+
+Selisih ini juga menjelaskan jumlah menunggu pada tabel subbab 4.9. Jika dihitung di atas kertas dengan anggapan produsen tepat setiap 10 ms dan konsumen tepat setiap 80 ms, jumlah produsen menunggu bisa berbeda dari hasil program. Laporan tetap memakai angka hasil program, yaitu dua kali pada setiap percobaan, karena angka itulah yang benar-benar terjadi. Pada Linux, macOS, atau laptop lain, angkanya boleh berbeda.
+
+Ada tiga jenis waktu yang perlu dibedakan pada modul ini: jeda yang diminta (10, 40, atau 80 ms), waktu kejadian yang benar-benar tercatat, dan kecepatan pemutaran animasi di browser (0,6 detik per langkah). Animasi hanya memutar ulang rekaman setelah thread selesai, sehingga menekan tombol Jeda tidak memengaruhi percobaan yang sudah terjadi.
+
+### 4.13 Pengujian dan perbaikan
+
+Selama pengembangan, beberapa kesalahan ditemukan lalu diperbaiki. Setiap perbaikan diberi tes khusus agar kesalahan yang sama terdeteksi jika muncul kembali (disebut tes regresi). Tabel berikut merangkum keadaan yang diuji, hasil yang diharapkan, dan nama tesnya.
+
+| Keadaan yang diuji | Hasil yang diharapkan | Nama tes |
+|---|---|---|
+| Satu proses, burst 5, quantum 2 | Tiga giliran; nol pergantian antarproses | test_rr_single_process_not_switch |
+| Proses datang tepat saat quantum habis | Proses baru masuk antrean sebelum proses yang baru dipotong | test_rr_manual_boundary_arrival |
+| Nama IDLE atau burst di luar batas | Input ditolak dengan pesan, bukan diubah diam-diam | Tes validasi dan browser |
+| Thread gagal atau terlalu lama | Percobaan ditandai gagal dan thread lain dihentikan | Tes error/timeout |
+| Data kiriman yang rusak atau terlalu rumit | Server menolak dengan pesan kesalahan dan tetap melayani permintaan berikutnya | test_complex_json_rejected_and_server_recovers |
+| Banyak produsen dan konsumen sekaligus | Isi buffer pada setiap langkah sesuai urutan FIFO | test_multiple_workers_trace |
+
+Salah satu perbaikan terakhir menyangkut data kiriman yang sengaja dibuat aneh, yaitu data bertingkat sampai 10.000 lapis atau angka sepanjang 5.000 digit. Sebelum diperbaiki, server memutus koneksi tanpa memberi pesan. Setelah diperbaiki, server membalas dengan pesan kesalahan (kode HTTP 400) dan permintaan normal berikutnya tetap berhasil. Catatan pengujian sebelum dan sesudah perbaikan disimpan pada folder bukti.
+
+## BAB V PENUTUP
+
+### 5.1 Kesimpulan
+
+Berdasarkan perancangan, implementasi, dan pengujian yang telah dilakukan, ketiga rumusan masalah pada subbab 1.2 dapat dijawab sebagai berikut.
+
+Pertama, aplikasi berhasil memperagakan perbedaan FCFS dan Round Robin melalui Gantt chart dan tabel hasil. Perhitungan manual sama dengan hasil program. Pada contoh tiga proses, Round Robin quantum dua mempercepat rata-rata respons dari 3,33 menjadi satu, sedangkan rata-rata waktu tunggu tetap 3,33. Artinya, Round Robin membuat setiap proses lebih cepat mendapat giliran pertama, tetapi tidak selalu mengurangi total waktu tunggu. Hasil ini berlaku untuk data contoh, bukan bukti bahwa satu algoritma selalu lebih baik.
+
+Kedua, dua semaphore (empty dan full) bersama satu mutex berhasil menjaga buffer. Pada lima belas percobaan, delapan barang selalu berpindah lengkap, isi buffer tidak pernah melebihi kapasitas, urutan barang tetap FIFO, dan tidak ada thread yang tertinggal. Produsen menunggu ketika buffer penuh dan konsumen menunggu ketika buffer kosong; keadaan menunggu ini normal dan bukan deadlock.
+
+Ketiga, setiap hasil dapat ditelusuri kembali melalui perhitungan manual, rekaman kejadian, dan pengujian otomatis yang disertakan. Pengujian juga menunjukkan bahwa jeda yang diminta pada thread tidak sama dengan jarak waktu yang benar-benar terjadi; misalnya jeda 10 ms tercatat sebagai jarak 14,54–21,82 ms.
+
+### 5.2 Keterbatasan
+
+Simulator penjadwalan memakai satu CPU, lama setiap proses sudah diketahui, tidak ada operasi I/O, dan waktu pergantian proses tidak dihitung. Producer–Consumer memakai thread di dalam satu program Python, bukan dua program terpisah, dan animasinya diputar ulang setelah percobaan selesai. Pengujian hanya dilakukan pada Windows dan Chrome.
+
+Urutan pelayanan thread ketika ada banyak produsen atau konsumen tidak dijamin, sehingga kemungkinan starvation tidak dibuktikan bebas. Penyebab selisih jeda belum diukur satu per satu. Proyek ini juga belum mengukur apakah aplikasi benar-benar membantu mahasiswa memahami materi.
+
+### 5.3 Saran pengembangan
+
+Pengembangan berikutnya dapat menambahkan biaya waktu pergantian proses, menampilkan isi antrean siap pada setiap langkah, dan mengukur lama menunggu thread secara lebih rinci. Aplikasi juga dapat dicoba oleh beberapa mahasiswa untuk menilai apakah penjelasannya mudah dipahami.
+
+## DAFTAR PUSTAKA
+
+[1] Remzi H Arpaci-Dusseau dan Andrea C Arpaci-Dusseau. [Operating Systems Three Easy Pieces Bab 4 The Abstraction The Process](https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-intro.pdf). Diakses 24 Oktober 2026.
+
+[2] Remzi H Arpaci-Dusseau dan Andrea C Arpaci-Dusseau. [Operating Systems Three Easy Pieces Bab 7 Scheduling Introduction](https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-sched.pdf). Diakses 24 Oktober 2026.
+
+[3] Remzi H Arpaci-Dusseau dan Andrea C Arpaci-Dusseau. [Operating Systems Three Easy Pieces Bab 26 Concurrency An Introduction](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-intro.pdf). Diakses 24 Oktober 2026.
+
+[4] Python Software Foundation. [Dokumentasi Python 3.13 threading](https://docs.python.org/3.13/library/threading.html). Diakses 24 Oktober 2026.
+
+[5] Remzi H Arpaci-Dusseau dan Andrea C Arpaci-Dusseau. [Operating Systems Three Easy Pieces Bab 31 Semaphores](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-sema.pdf). Diakses 24 Oktober 2026.
+
+[6] Remzi H Arpaci-Dusseau dan Andrea C Arpaci-Dusseau. [Operating Systems Three Easy Pieces Bab 28 Locks](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-locks.pdf). Diakses 24 Oktober 2026.
+
+[7] Abraham Silberschatz, Peter B. Galvin dan Greg Gagne. [Operating System Concepts, edisi 10. Slide pendamping Bab 3: Processes, slide 8-10 dan 16-17](https://os-book.com/OS10/slide-dir/PPTX-dir/ch3.pptx). Diakses 25 Oktober 2026.
+
+[8] Abraham Silberschatz, Peter B. Galvin dan Greg Gagne. [Operating System Concepts, edisi 10. Slide pendamping Bab 5: CPU Scheduling, slide 10 dan 21-23](https://os-book.com/OS10/slide-dir/PPTX-dir/ch5.pptx). Diakses 25 Oktober 2026.
+
+[9] Abraham Silberschatz, Peter B. Galvin dan Greg Gagne. [Operating System Concepts, edisi 10. Slide pendamping Bab 6: Synchronization Tools, slide 8 dan 56](https://os-book.com/OS10/slide-dir/PPTX-dir/ch6.pptx). Diakses 25 Oktober 2026.
+
+[10] Andrew S. Tanenbaum. [Modern Operating Systems, edisi 2 (2001). Sampel resmi bagian 2.2: Threads, hlm. 81-83](https://www.cs.vu.nl/~ast/books/mos2/sample-2.pdf). Diakses 25 Oktober 2026.
+
+[11] Edsger W. Dijkstra. [Cooperating Sequential Processes, EWD123, bagian 3.2: The Synchronizing Primitives](https://www.cs.utexas.edu/~EWD/transcriptions/EWD01xx/EWD123.html). Diakses 25 Oktober 2026.
