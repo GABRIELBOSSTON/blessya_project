@@ -8,6 +8,7 @@ if exist ".tools\python\python.exe" (
 )
 if errorlevel 1 (
   echo.
-  echo Program belum dapat dijalankan. Lihat petunjuk di docs\PANDUAN-PENGGUNA.md.
+  echo Could not start the program. Make sure the .tools\python folder exists,
+  echo or install Python 3.10+ and run: py run.py
   pause
 )

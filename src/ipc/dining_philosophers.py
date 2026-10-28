@@ -1,30 +1,30 @@
-"""Dining Philosophers - menjembatani materi IPC dan Deadlock.
+"""Dining Philosophers - bridging the IPC and Deadlock topics.
 
-Materi: IPC & Classical Problems + Deadlock
+Topic: IPC & Classical Problems + Deadlock
 
-Lima filsuf duduk mengelilingi meja bundar. Di antara setiap dua filsuf
-ada satu garpu, jadi ada 5 garpu. Untuk makan, seorang filsuf butuh DUA
-garpu: garpu kiri dan garpu kanannya.
+Five philosophers sit around a round table. There is one fork between
+every two philosophers, so there are 5 forks. To eat, a philosopher needs
+TWO forks: the left fork and the right fork.
 
-Masalah ini menjadi contoh baku karena memperlihatkan keempat syarat
-deadlock (syarat Coffman) sekaligus:
+This problem is the standard example because it shows all four deadlock
+conditions (the Coffman conditions) at once:
 
-  1. Mutual exclusion - satu garpu hanya boleh dipegang satu filsuf.
-  2. Hold and wait    - filsuf memegang garpu kiri sambil menunggu kanan.
-  3. No preemption    - garpu tidak bisa dirampas, harus diserahkan sendiri.
-  4. Circular wait    - F1 tunggu F2, F2 tunggu F3, ... F5 tunggu F1.
+  1. Mutual exclusion - a fork can be held by only one philosopher.
+  2. Hold and wait    - a philosopher holds the left fork while waiting for the right.
+  3. No preemption    - a fork cannot be taken away; it must be released voluntarily.
+  4. Circular wait    - F1 waits for F2, F2 waits for F3, ... F5 waits for F1.
 
-Modul ini menyediakan tiga strategi untuk dibandingkan:
+This module provides three strategies to compare:
 
-  "naive"      - semua ambil kiri dulu, lalu kanan. BISA DEADLOCK.
-  "ordering"   - semua ambil garpu bernomor KECIL dulu. Memutus circular
-                 wait, jadi mustahil deadlock. (Prevention)
-  "waiter"     - ada pelayan yang hanya mengizinkan 4 filsuf mencoba makan
-                 sekaligus. Memutus hold-and-wait secara efektif.
+  "naive"      - everyone takes the left fork first, then the right. CAN DEADLOCK.
+  "ordering"   - everyone takes the LOWER-numbered fork first. Breaks circular
+                 wait, so deadlock is impossible. (Prevention)
+  "waiter"     - a waiter allows only 4 philosophers to try eating at the
+                 same time. Effectively breaks hold-and-wait.
                  (Avoidance / resource limiting)
 
-Catatan: strategi "naive" dijalankan dengan timeout. Kalau waktu habis
-sementara masih ada filsuf yang menunggu, itulah bukti deadlock terjadi.
+Note: the "naive" strategy runs with a timeout. If time runs out while
+philosophers are still waiting, that is proof a deadlock occurred.
 """
 
 import threading
@@ -64,15 +64,15 @@ def run_strategy(
     think: float = 0.002,
     eat: float = 0.004,
 ) -> dict:
-    """Jalankan satu strategi dan laporkan apakah terjadi deadlock."""
+    """Run one strategy and report whether a deadlock occurred."""
     if strategy not in STRATEGIES:
         raise ValueError(f"strategy must be one of {STRATEGIES}")
 
     rec = Recorder()
     forks = [threading.Lock() for _ in range(N)]
-    # Pelayan: hanya N-1 filsuf boleh "duduk mencoba makan" bersamaan.
-    # Dengan 4 orang berebut 5 garpu, selalu ada minimal satu yang
-    # bisa mendapat dua garpu, sehingga sistem tidak mungkin macet total.
+    # Waiter: only N-1 philosophers may "sit and try to eat" at the same time.
+    # With 4 people competing for 5 forks, at least one can always get two
+    # forks, so the system can never be completely stuck.
     waiter = threading.Semaphore(N - 1)
 
     eaten = [0] * N
@@ -82,7 +82,7 @@ def run_strategy(
     stop = threading.Event()
 
     def acquire(phil: int, fork: int) -> bool:
-        """Coba ambil satu garpu. Kembalikan False kalau waktu sudah habis."""
+        """Try to take one fork. Return False if time has run out."""
         with state_lock:
             waiting_for[phil] = fork
         rec.log(f"F{phil + 1}", "REQUEST", f"waiting for fork {fork + 1}")
@@ -122,19 +122,19 @@ def run_strategy(
                 rec.log(f"F{phil + 1}", "PERMIT", "waiter granted permission to attempt eating")
 
             if strategy == "ordering":
-                # Kunci: urutkan permintaan berdasarkan nomor garpu.
-                # Karena SEMUA filsuf mengambil nomor kecil lebih dulu,
-                # tidak mungkin terbentuk lingkaran tunggu.
+                # Key idea: order requests by fork number. Because ALL
+                # philosophers take the lower number first, a circular
+                # wait can never form.
                 first, second = min(left, right), max(left, right)
             else:
-                # naive & waiter: kiri dulu, lalu kanan.
+                # naive & waiter: left first, then right.
                 first, second = left, right
 
             if not acquire(phil, first):
                 return
-            # Jeda ini memperbesar peluang semua filsuf sama-sama sudah
-            # memegang garpu pertama sebelum meminta yang kedua - yaitu
-            # kondisi pasti deadlock pada strategi naive.
+            # This pause increases the chance that every philosopher already
+            # holds the first fork before requesting the second - which is
+            # the guaranteed deadlock condition for the naive strategy.
             time.sleep(0.003)
             if not acquire(phil, second):
                 release_all(phil)
@@ -163,7 +163,8 @@ def run_strategy(
     alive = [t.name for t in threads if t.is_alive()]
     deadlocked = bool(alive)
 
-    # Potret keadaan saat macet: siapa memegang apa, siapa menunggu apa.
+    # Snapshot of the stuck state: who holds what, who waits for what.
+    # The Indonesian keys (memegang/menunggu/sudah_makan) are kept for compatibility.
     with state_lock:
         snapshot = {
             f"F{i + 1}": {
@@ -218,11 +219,11 @@ def run_strategy(
 
 
 def _find_cycle(holding: dict, waiting_for: dict) -> list[str]:
-    """Cari lingkaran tunggu pada wait-for graph saat deadlock.
+    """Find the circular wait in the wait-for graph during a deadlock.
 
-    Bentuk graf: filsuf A -> filsuf B jika A menunggu garpu yang
-    sedang dipegang B. Adanya siklus pada graf ini membuktikan
-    circular wait, syarat keempat Coffman.
+    Graph shape: philosopher A -> philosopher B if A waits for a fork that
+    B currently holds. A cycle in this graph proves circular wait, the
+    fourth Coffman condition.
     """
     owner = {f: p for p, fs in holding.items() for f in fs}
     edges = {}
@@ -245,7 +246,7 @@ def _find_cycle(holding: dict, waiting_for: dict) -> list[str]:
 
 
 def compare_all(meals: int = 3, timeout: float = 3.0) -> dict:
-    """Jalankan ketiga strategi untuk tabel perbandingan di laporan."""
+    """Run all three strategies for the comparison table."""
     results = [run_strategy(s, meals=meals, timeout=timeout) for s in STRATEGIES]
     return {
         "results": results,
@@ -264,31 +265,31 @@ def compare_all(meals: int = 3, timeout: float = 3.0) -> dict:
 
 if __name__ == "__main__":
     print("=" * 72)
-    print("DINING PHILOSOPHERS - 5 filsuf, 5 garpu")
+    print("DINING PHILOSOPHERS - 5 philosophers, 5 forks")
     print("=" * 72)
     for strat in STRATEGIES:
         r = run_strategy(strat)
         print()
-        print(f"STRATEGI: {r['strategy_label']}")
+        print(f"STRATEGY: {r['strategy_label']}")
         print("-" * 72)
         for who, st in r["state_snapshot"].items():
             held = ", ".join(str(f) for f in st["memegang"]) or "-"
             waits = str(st["menunggu"]) if st["menunggu"] else "-"
             print(
-                f"  {who}: memegang {held:<10} menunggu {waits:<5} "
-                f"sudah makan {st['sudah_makan']}x"
+                f"  {who}: holding {held:<10} waiting {waits:<5} "
+                f"meals eaten {st['sudah_makan']}x"
             )
         print(f"  => {r['conclusion']}")
 
     print()
     print("=" * 72)
-    print("RINGKASAN")
+    print("SUMMARY")
     print("=" * 72)
     c = compare_all()
-    print(f"{'Strategi':<46} {'Deadlock':<10} {'Berhasil makan'}")
+    print(f"{'Strategy':<46} {'Deadlock':<10} {'Meals eaten'}")
     print("-" * 72)
     for s in c["summary"]:
         print(
-            f"{s['label']:<46} {'YA' if s['deadlocked'] else 'tidak':<10} "
+            f"{s['label']:<46} {'YES' if s['deadlocked'] else 'no':<10} "
             f"{s['total_eaten']}/{s['target']}"
         )

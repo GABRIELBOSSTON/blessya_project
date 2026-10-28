@@ -1,5 +1,5 @@
 /* ===================================================================
-   Panel 2 - Thread, Race Condition, dan IPC
+   Panel 2 - Threads, Race Condition, and IPC
    =================================================================== */
 
 /* ---------------- A. Race condition ---------------- */
@@ -140,12 +140,12 @@ async function runPC(btn) {
 
 /* ---------------- C. Dining Philosophers ---------------- */
 
-/** Gambar meja bundar: 5 filsuf dan 5 garpu di antaranya. */
+/** Draw the round table: 5 philosophers with 5 forks between them. */
 function philSVG(snapshot, deadlocked) {
   const N = 5, cx = 150, cy = 150, rP = 100, rF = 62;
   let out = "";
 
-  // Garpu di antara setiap dua filsuf.
+  // A fork between every two philosophers.
   for (let i = 0; i < N; i++) {
     const a = (i / N) * 2 * Math.PI - Math.PI / 2 + Math.PI / N;
     const x = cx + rF * Math.cos(a), y = cy + rF * Math.sin(a);
@@ -157,7 +157,7 @@ function philSVG(snapshot, deadlocked) {
         font-size="11" font-weight="700" fill="${used ? "#78350f" : "#52525b"}">${i + 1}</text>`;
   }
 
-  // Filsuf.
+  // Philosophers.
   for (let i = 0; i < N; i++) {
     const a = (i / N) * 2 * Math.PI - Math.PI / 2;
     const x = cx + rP * Math.cos(a), y = cy + rP * Math.sin(a);

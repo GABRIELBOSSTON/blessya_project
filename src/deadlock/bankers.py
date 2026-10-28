@@ -1,32 +1,32 @@
 """Banker's Algorithm - Deadlock Avoidance.
 
-Materi: Deadlock - Avoidance & Prevention Algorithms
+Topic: Deadlock - Avoidance & Prevention Algorithms
 
-Ide dasarnya meminjam cara kerja bank. Bank punya sejumlah uang. Setiap
-nasabah mengumumkan di awal berapa maksimal kredit yang mungkin ia tarik.
-Bank hanya menyetujui penarikan jika SETELAH penarikan itu bank masih
-mampu memenuhi permintaan maksimal semua nasabah dalam suatu urutan
-tertentu. Kalau tidak bisa dijamin, penarikan ditunda - walaupun uangnya
-sebenarnya sedang ada.
+The basic idea borrows from how a bank works. A bank has a certain amount
+of money. Each customer declares up front the maximum credit they may
+withdraw. The bank approves a withdrawal only if, AFTER it, the bank can
+still satisfy the maximum demands of all customers in some order. If that
+cannot be guaranteed, the withdrawal is postponed - even though the money
+is currently available.
 
-Istilah dalam algoritma:
-  Allocation : sumber daya yang SEDANG dipegang tiap proses
-  Max        : kebutuhan MAKSIMAL tiap proses (dideklarasikan di awal)
-  Need       : Max - Allocation, yaitu sisa yang mungkin masih diminta
-  Available  : sumber daya yang masih bebas
+Terms used by the algorithm:
+  Allocation : resources CURRENTLY held by each process
+  Max        : MAXIMUM demand of each process (declared up front)
+  Need       : Max - Allocation, i.e. what may still be requested
+  Available  : resources that are still free
 
-SAFE STATE: ada urutan proses (safe sequence) di mana setiap proses bisa
-mendapatkan seluruh Need-nya, selesai, lalu mengembalikan semua sumber
-dayanya untuk dipakai proses berikutnya.
+SAFE STATE: there is an order of processes (a safe sequence) in which each
+process can obtain all of its Need, finish, and then return all of its
+resources for the next process to use.
 
-Yang sering salah dipahami: UNSAFE STATE BUKAN BERARTI DEADLOCK. Unsafe
-hanya berarti deadlock MUNGKIN terjadi kalau semua proses benar-benar
-menarik kebutuhan maksimalnya. Banker's Algorithm bersifat konservatif:
-ia menolak hal-hal yang sebetulnya mungkin masih aman, demi jaminan.
+A common misconception: an UNSAFE STATE IS NOT A DEADLOCK. Unsafe only
+means a deadlock MAY happen if every process actually requests its maximum
+demand. The Banker's Algorithm is conservative: it refuses things that
+might actually still be safe, in exchange for a guarantee.
 
-Biaya algoritma ini: O(n^2 * m) untuk n proses dan m jenis sumber daya,
-dan ia mensyaratkan Max diketahui di awal - sesuatu yang jarang terpenuhi
-di sistem operasi nyata. Itu sebabnya OS modern umumnya tidak memakainya.
+Cost of the algorithm: O(n^2 * m) for n processes and m resource types, and
+it requires Max to be known in advance - something rarely possible in real
+operating systems. That is why modern OSes generally do not use it.
 """
 
 from dataclasses import dataclass
@@ -34,13 +34,13 @@ from dataclasses import dataclass
 
 @dataclass
 class BankerState:
-    """Keadaan sistem untuk Banker's Algorithm.
+    """System state for the Banker's Algorithm.
 
-    processes : nama proses, contoh ["P0", "P1", ...]
-    resources : nama jenis sumber daya, contoh ["A", "B", "C"]
-    allocation: matriks n x m, sumber daya yang dipegang sekarang
-    maximum   : matriks n x m, kebutuhan maksimal
-    available : vektor m, sumber daya yang bebas
+    processes : process names, e.g. ["P0", "P1", ...]
+    resources : resource type names, e.g. ["A", "B", "C"]
+    allocation: n x m matrix, resources currently held
+    maximum   : n x m matrix, maximum demand
+    available : vector of m, free resources
     """
 
     processes: list[str]
@@ -77,7 +77,7 @@ class BankerState:
 
     @property
     def total_resources(self) -> list[int]:
-        """Total sumber daya di sistem = yang dipegang + yang bebas."""
+        """Total resources in the system = held + free."""
         m = len(self.resources)
         return [
             sum(row[j] for row in self.allocation) + self.available[j] for j in range(m)
@@ -105,14 +105,14 @@ class BankerState:
 
 
 def is_safe(state: BankerState) -> dict:
-    """Safety Algorithm: cari safe sequence.
+    """Safety Algorithm: find a safe sequence.
 
-    Langkah:
-      1. work = available ; finish[i] = False untuk semua i
-      2. Cari proses i yang belum finish dan Need[i] <= work
-      3. Kalau ada: anggap ia selesai, work += Allocation[i], finish[i]=True,
-         lalu ulangi langkah 2
-      4. Kalau tidak ada lagi: state SAFE jika semua finish, UNSAFE jika tidak
+    Steps:
+      1. work = available ; finish[i] = False for every i
+      2. Find a process i that is not finished and Need[i] <= work
+      3. If found: treat it as finished, work += Allocation[i], finish[i]=True,
+         then repeat step 2
+      4. If none is left: the state is SAFE if all finished, UNSAFE otherwise
     """
     n, m = len(state.processes), len(state.resources)
     need = state.need
@@ -194,16 +194,16 @@ def is_safe(state: BankerState) -> dict:
 
 
 def request_resources(state: BankerState, process: str, request: list[int]) -> dict:
-    """Resource-Request Algorithm: boleh tidak permintaan ini dikabulkan?
+    """Resource-Request Algorithm: may this request be granted?
 
-    Tiga pemeriksaan berurutan:
-      1. Request <= Need    -> kalau tidak, proses melanggar deklarasi Max (ERROR)
-      2. Request <= Available -> kalau tidak, proses harus menunggu
-      3. Coba alokasikan sementara, lalu jalankan safety check.
-         Kalau hasilnya safe -> kabulkan. Kalau unsafe -> BATALKAN dan tunda.
+    Three checks in order:
+      1. Request <= Need      -> otherwise the process violates its Max declaration (ERROR)
+      2. Request <= Available -> otherwise the process must wait
+      3. Tentatively allocate, then run the safety check.
+         If the result is safe -> grant. If unsafe -> ROLL BACK and postpone.
 
-    Langkah 3 inilah inti avoidance: permintaan ditolak walaupun sumber
-    dayanya tersedia, karena mengabulkannya membawa sistem ke unsafe state.
+    Step 3 is the essence of avoidance: a request is refused even though the
+    resources are available, because granting it leads to an unsafe state.
     """
     if process not in state.processes:
         raise ValueError(f"process '{process}' not found. Options: {state.processes}")
@@ -217,7 +217,7 @@ def request_resources(state: BankerState, process: str, request: list[int]) -> d
     need = state.need
     log: list[str] = [f"{process} requests {request}"]
 
-    # Pemeriksaan 1
+    # Check 1
     viol = [
         f"{state.resources[j]} (requested {request[j]}, Need only {need[i][j]})"
         for j in range(m)
@@ -238,7 +238,7 @@ def request_resources(state: BankerState, process: str, request: list[int]) -> d
         }
     log.append(f"  Check 1 PASSED: Request {request} <= Need {need[i]}")
 
-    # Pemeriksaan 2
+    # Check 2
     short = [
         f"{state.resources[j]} (requested {request[j]}, available {state.available[j]})"
         for j in range(m)
@@ -257,7 +257,7 @@ def request_resources(state: BankerState, process: str, request: list[int]) -> d
         }
     log.append(f"  Check 2 PASSED: Request {request} <= Available {state.available}")
 
-    # Pemeriksaan 3 - alokasi percobaan
+    # Check 3 - tentative allocation
     trial = state.copy()
     for j in range(m):
         trial.available[j] -= request[j]
@@ -309,10 +309,10 @@ def request_resources(state: BankerState, process: str, request: list[int]) -> d
 
 
 def classic_example() -> BankerState:
-    """Contoh baku dari Silberschatz, Operating System Concepts.
+    """Standard example from Silberschatz, Operating System Concepts.
 
-    5 proses, 3 jenis sumber daya (A=10, B=5, C=7).
-    Keadaan ini SAFE dengan safe sequence < P1, P3, P4, P2, P0 >.
+    5 processes, 3 resource types (A=10, B=5, C=7).
+    This state is SAFE with safe sequence < P1, P3, P4, P2, P0 >.
     """
     return BankerState(
         processes=["P0", "P1", "P2", "P3", "P4"],
@@ -336,7 +336,7 @@ def classic_example() -> BankerState:
 
 
 def unsafe_example() -> BankerState:
-    """Contoh keadaan UNSAFE: tidak ada proses yang Need-nya bisa dipenuhi."""
+    """Example UNSAFE state: no process can have its Need satisfied."""
     return BankerState(
         processes=["P0", "P1", "P2"],
         resources=["A", "B"],
@@ -350,13 +350,13 @@ def _table(state: BankerState) -> None:
     need = state.need
     w = max(len(p) for p in state.processes) + 2
     head = " ".join(f"{r:>2}" for r in state.resources)
-    print(f"{'Proses':<{w}} {'Allocation':<{len(head) + 2}} {'Max':<{len(head) + 2}} Need")
+    print(f"{'Process':<{w}} {'Allocation':<{len(head) + 2}} {'Max':<{len(head) + 2}} Need")
     for i, p in enumerate(state.processes):
         a = " ".join(f"{v:>2}" for v in state.allocation[i])
         mx = " ".join(f"{v:>2}" for v in state.maximum[i])
         nd = " ".join(f"{v:>2}" for v in need[i])
         print(f"{p:<{w}} {a:<{len(head) + 2}} {mx:<{len(head) + 2}} {nd}")
-    print(f"\nAvailable : {state.available}  (total sistem: {state.total_resources})")
+    print(f"\nAvailable : {state.available}  (system total: {state.total_resources})")
 
 
 if __name__ == "__main__":
@@ -368,7 +368,7 @@ if __name__ == "__main__":
 
     print()
     print("-" * 72)
-    print("SAFETY CHECK pada keadaan awal")
+    print("SAFETY CHECK on the initial state")
     print("-" * 72)
     r = is_safe(st)
     for line in r["log"]:
@@ -376,38 +376,38 @@ if __name__ == "__main__":
 
     print()
     print("-" * 72)
-    print("SKENARIO 1 - P1 meminta [1, 0, 2]  (seharusnya DIKABULKAN)")
+    print("SCENARIO 1 - P1 requests [1, 0, 2]  (should be GRANTED)")
     print("-" * 72)
     for line in request_resources(st, "P1", [1, 0, 2])["log"]:
         print(line)
 
     print()
     print("-" * 72)
-    print("SKENARIO 2 - P4 meminta [3, 3, 0]")
-    print("Sumber daya CUKUP (Available [3,3,2]), tetapi tetap DITOLAK")
-    print("karena mengabulkannya membawa sistem ke unsafe state.")
+    print("SCENARIO 2 - P4 requests [3, 3, 0]")
+    print("Resources are SUFFICIENT (Available [3,3,2]), yet it is still DENIED")
+    print("because granting it would lead the system to an unsafe state.")
     print("-" * 72)
     for line in request_resources(st, "P4", [3, 3, 0])["log"]:
         print(line)
 
     print()
     print("-" * 72)
-    print("SKENARIO 3 - P0 meminta [4, 0, 0]  (melebihi Available, DITUNDA)")
+    print("SCENARIO 3 - P0 requests [4, 0, 0]  (exceeds Available, POSTPONED)")
     print("-" * 72)
     for line in request_resources(st, "P0", [4, 0, 0])["log"]:
         print(line)
 
     print()
     print("-" * 72)
-    print("SKENARIO 4 - P2 meminta [0, 1, 0]  (melebihi Need, ERROR proses)")
-    print("P2 punya Need [6,0,0]: ia tidak pernah mendeklarasikan butuh B.")
+    print("SCENARIO 4 - P2 requests [0, 1, 0]  (exceeds Need, process ERROR)")
+    print("P2 has Need [6,0,0]: it never declared that it needs B.")
     print("-" * 72)
     for line in request_resources(st, "P2", [0, 1, 0])["log"]:
         print(line)
 
     print()
     print("=" * 72)
-    print("CONTOH KEADAAN UNSAFE")
+    print("EXAMPLE OF AN UNSAFE STATE")
     print("=" * 72)
     u = unsafe_example()
     _table(u)

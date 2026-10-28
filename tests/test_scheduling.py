@@ -1,10 +1,10 @@
-"""Uji kebenaran algoritma penjadwalan.
+"""Correctness tests for the scheduling algorithms.
 
-Jalankan:  py tests/test_scheduling.py
+Run:  py tests/test_scheduling.py
 
-Nilai yang diharapkan di bawah dihitung manual terlebih dahulu (lihat
-docs/PERHITUNGAN-MANUAL.md). Tujuannya membuktikan program tidak hanya
-"mengeluarkan angka", tapi mengeluarkan angka yang BENAR.
+The expected values below were first calculated by hand. The goal is to
+prove that the program does not just "output numbers", but outputs the
+CORRECT numbers.
 """
 
 import sys
@@ -23,10 +23,10 @@ def check(label: str, got, want) -> None:
     global passed, failed
     if got == want:
         passed += 1
-        print(f"  LULUS  {label}: {got}")
+        print(f"  PASS  {label}: {got}")
     else:
         failed += 1
-        print(f"  GAGAL  {label}: dapat {got}, seharusnya {want}")
+        print(f"  FAIL  {label}: got {got}, expected {want}")
 
 
 def gantt(result) -> str:
@@ -34,41 +34,41 @@ def gantt(result) -> str:
 
 
 print("=" * 70)
-print("KASUS 1 - FCFS, convoy effect")
+print("CASE 1 - FCFS, convoy effect")
 print("=" * 70)
-# P1 burst 24 datang pertama, menahan dua proses pendek di belakangnya.
+# P1 with burst 24 arrives first and holds back two short processes behind it.
 ps = [Process("P1", 0, 24), Process("P2", 0, 3), Process("P3", 0, 3)]
 r = A.fcfs(ps)
 print("  gantt:", gantt(r))
-# P1 tunggu 0, P2 tunggu 24, P3 tunggu 27 -> (0+24+27)/3 = 17.0
+# P1 waits 0, P2 waits 24, P3 waits 27 -> (0+24+27)/3 = 17.0
 check("FCFS avg waiting", r.avg_waiting, 17.0)
 check("FCFS total time", r.total_time, 30)
 
 r = A.sjf(ps)
 print("  gantt:", gantt(r))
-# Urutan jadi P2(3) P3(3) P1(24): tunggu 6 + 0 + 3 = 9/3 = 3.0
+# Order becomes P2(3) P3(3) P1(24): waits 6 + 0 + 3 = 9/3 = 3.0
 check("SJF avg waiting", r.avg_waiting, 3.0)
-print("  -> SJF memperbaiki avg waiting 17.0 menjadi 3.0 pada data yang sama.")
+print("  -> SJF improves avg waiting from 17.0 to 3.0 on the same data.")
 
 print()
 print("=" * 70)
-print("KASUS 2 - SRTF preemption")
+print("CASE 2 - SRTF preemption")
 print("=" * 70)
 ps = [Process("P1", 0, 8), Process("P2", 1, 4), Process("P3", 2, 9), Process("P4", 3, 5)]
 r = A.srtf(ps)
 print("  gantt:", gantt(r))
-# Hasil baku (Silberschatz): P1(0-1) P2(1-5) P4(5-10) P1(10-17) P3(17-26)
+# Standard result (Silberschatz): P1(0-1) P2(1-5) P4(5-10) P1(10-17) P3(17-26)
 check("SRTF avg waiting", r.avg_waiting, 6.5)
 check("SRTF total time", r.total_time, 26)
 
 r = A.fcfs(ps)
-# FCFS urut kedatangan: P1,P2,P3,P4 -> waiting 0,7,10,18 = 35/4 = 8.75
-check("FCFS avg waiting (data sama)", r.avg_waiting, 8.75)
-print("  -> SRTF 6.50 lebih baik dari FCFS 8.75 pada data identik.")
+# FCFS in arrival order: P1,P2,P3,P4 -> waiting 0,7,10,18 = 35/4 = 8.75
+check("FCFS avg waiting (same data)", r.avg_waiting, 8.75)
+print("  -> SRTF 6.50 is better than FCFS 8.75 on identical data.")
 
 print()
 print("=" * 70)
-print("KASUS 3 - Round Robin, pengaruh quantum")
+print("CASE 3 - Round Robin, effect of quantum")
 print("=" * 70)
 ps = [Process("P1", 0, 10), Process("P2", 0, 10), Process("P3", 0, 10)]
 for q in (1, 2, 5, 10, 30):
@@ -80,54 +80,54 @@ for q in (1, 2, 5, 10, 30):
 r1 = A.round_robin(ps, quantum=1)
 r30 = A.round_robin(ps, quantum=30)
 rf = A.fcfs(ps)
-check("quantum besar -> identik FCFS", r30.avg_waiting, rf.avg_waiting)
-check("quantum=1 response time terkecil", r1.avg_response, 1.0)
-print("  -> Trade-off terbukti: quantum kecil = response cepat tapi switch banyak.")
+check("large quantum -> identical to FCFS", r30.avg_waiting, rf.avg_waiting)
+check("quantum=1 gives the lowest response time", r1.avg_response, 1.0)
+print("  -> Trade-off confirmed: small quantum = fast response but many switches.")
 
 print()
 print("=" * 70)
-print("KASUS 4 - CPU idle saat belum ada proses tiba")
+print("CASE 4 - CPU idle before any process arrives")
 print("=" * 70)
 ps = [Process("P1", 5, 3)]
 r = A.fcfs(ps)
 print("  gantt:", gantt(r))
-check("ada segmen IDLE", r.timeline[0].pid, "IDLE")
-check("utilisasi CPU", r.cpu_utilization, 37.5)
+check("has an IDLE segment", r.timeline[0].pid, "IDLE")
+check("CPU utilization", r.cpu_utilization, 37.5)
 
 print()
 print("=" * 70)
-print("KASUS 5 - Priority dan starvation")
+print("CASE 5 - Priority and starvation")
 print("=" * 70)
 ps = [
-    Process("P-penting", 0, 2, priority=1),
-    Process("P-biasa", 0, 4, priority=5),
-    Process("P-rendah", 0, 3, priority=9),
+    Process("P-high", 0, 2, priority=1),
+    Process("P-normal", 0, 4, priority=5),
+    Process("P-low", 0, 3, priority=9),
 ]
 r = A.priority(ps)
 print("  gantt:", gantt(r))
-check("urutan pertama = prioritas tertinggi", r.timeline[0].pid, "P-penting")
-check("urutan terakhir = prioritas terendah", r.timeline[-1].pid, "P-rendah")
+check("first in order = highest priority", r.timeline[0].pid, "P-high")
+check("last in order = lowest priority", r.timeline[-1].pid, "P-low")
 
 print()
 print("=" * 70)
-print("KASUS 6 - Validasi masukan salah")
+print("CASE 6 - Invalid input validation")
 print("=" * 70)
 try:
     Process("X", 0, 0)
-    check("burst=0 ditolak", "tidak ditolak", "ValueError")
+    check("burst=0 rejected", "not rejected", "ValueError")
 except ValueError as e:
     passed += 1
-    print(f"  LULUS  burst=0 ditolak: {e}")
+    print(f"  PASS  burst=0 rejected: {e}")
 try:
     A.round_robin([Process("X", 0, 1)], quantum=0)
-    check("quantum=0 ditolak", "tidak ditolak", "ValueError")
+    check("quantum=0 rejected", "not rejected", "ValueError")
 except ValueError as e:
     passed += 1
-    print(f"  LULUS  quantum=0 ditolak: {e}")
+    print(f"  PASS  quantum=0 rejected: {e}")
 
 print()
 print("=" * 70)
-print("KASUS 7 - Konsistensi rumus pada semua algoritma")
+print("CASE 7 - Formula consistency across all algorithms")
 print("=" * 70)
 ps = [Process("P1", 0, 6), Process("P2", 2, 4), Process("P3", 4, 2, 1)]
 for r in A.compare_all(ps, quantum=2):
@@ -137,13 +137,13 @@ for r in A.compare_all(ps, quantum=2):
     label = f"{r.algorithm[:40]:40}"
     if ok and busy == sum(p.burst for p in ps):
         passed += 1
-        print(f"  LULUS  {label} waiting=turnaround-burst, total CPU={busy}")
+        print(f"  PASS  {label} waiting=turnaround-burst, total CPU={busy}")
     else:
         failed += 1
-        print(f"  GAGAL  {label} rumus/total CPU tidak konsisten (busy={busy})")
+        print(f"  FAIL  {label} formula/total CPU inconsistent (busy={busy})")
 
 print()
 print("=" * 70)
-print(f"HASIL AKHIR: {passed} lulus, {failed} gagal")
+print(f"RESULT: {passed} passed, {failed} failed")
 print("=" * 70)
 sys.exit(1 if failed else 0)

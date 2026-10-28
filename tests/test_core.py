@@ -1,4 +1,4 @@
-"""Regresi inti: contoh manual, input buruk, konsistensi log dan penghentian thread."""
+"""Core regression tests: manual examples, bad input, log consistency and thread shutdown."""
 import sys
 import json
 import threading

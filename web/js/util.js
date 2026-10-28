@@ -1,8 +1,8 @@
 /* ===================================================================
-   Fungsi bantu yang dipakai semua panel.
+   Helper functions shared by all panels.
    =================================================================== */
 
-/** Kirim permintaan ke API Python dan kembalikan hasilnya sebagai objek. */
+/** Send a request to the Python API and return the result as an object. */
 async function api(path, payload) {
   const res = await fetch(path, {
     method: "POST",
@@ -16,7 +16,7 @@ async function api(path, payload) {
   return data;
 }
 
-/** Ubah teks menjadi aman untuk dimasukkan ke HTML. */
+/** Escape text so it is safe to insert into HTML. */
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
@@ -26,7 +26,7 @@ function esc(s) {
 const $ = (sel, root) => (root || document).querySelector(sel);
 const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
-/** Tampilkan pesan error di elemen tertentu. */
+/** Show an error message in the given element. */
 function showErr(id, msg) {
   const el = $(id);
   if (!el) return;
@@ -39,8 +39,8 @@ function clearErr(id) {
 }
 
 /**
- * Bungkus pemanggilan API: kelola tombol disabled, pesan "memproses",
- * dan penanganan error, supaya tidak ditulis berulang di setiap panel.
+ * Wrap an API call: manage the disabled button, the "processing" message,
+ * and error handling, so it is not repeated in every panel.
  */
 async function withBusy(btn, outSel, errSel, fn) {
   const out = $(outSel);
@@ -60,7 +60,7 @@ async function withBusy(btn, outSel, errSel, fn) {
   }
 }
 
-/** Warna tetap untuk setiap proses, supaya konsisten antar Gantt chart. */
+/** Fixed color per process, so it stays consistent across Gantt charts. */
 const PALETTE = [
   "#bfdbfe", "#bbf7d0", "#fde68a", "#ddd6fe", "#fecdd3",
   "#a5f3fc", "#fed7aa", "#d9f99d", "#f5d0fe", "#bae6fd",
@@ -73,7 +73,7 @@ function colorFor(pid) {
   return _colorMap.get(pid);
 }
 
-/** Satu kotak angka ringkasan. */
+/** One summary number box. */
 function chip(label, value, tone) {
   return `<div class="chip ${tone || ""}">
     <span class="k">${esc(label)}</span>
@@ -81,7 +81,7 @@ function chip(label, value, tone) {
   </div>`;
 }
 
-/** Blok log yang bisa dibuka-tutup. */
+/** Collapsible log block. */
 function logBlock(lines, title) {
   if (!lines || !lines.length) return "";
   return `<details class="log">
@@ -90,7 +90,7 @@ function logBlock(lines, title) {
   </details>`;
 }
 
-/** Tabel sederhana dari daftar baris. */
+/** Simple table built from a list of rows. */
 function table(headers, rows, opts) {
   const o = opts || {};
   const head = headers

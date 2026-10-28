@@ -1,17 +1,16 @@
-"""Server web untuk tampilan simulator.
+"""Web server for the simulator interface.
 
-Dibangun hanya dengan modul bawaan Python (http.server + json). Tidak ada
-library tambahan, jadi tidak perlu `pip install` apa pun. Keputusan ini
-diambil supaya program bisa dijalankan di komputer mana pun yang sudah
-ada Python-nya, cukup dengan satu perintah.
+Built only with Python's standard library (http.server + json). There are
+no extra libraries, so no `pip install` is needed. This keeps the program
+runnable on any computer that has Python, with a single command.
 
-Server ini melakukan dua hal:
-  1. Menyajikan berkas statis dari folder web/ (HTML, CSS, JavaScript)
-  2. Menyediakan API JSON di /api/* yang memanggil modul simulasi
+The server does two things:
+  1. Serves static files from the web/ folder (HTML, CSS, JavaScript)
+  2. Provides a JSON API under /api/* that calls the simulation modules
 
-Catatan keamanan: server ini sengaja hanya mendengarkan di 127.0.0.1
-(localhost), jadi tidak bisa diakses dari komputer lain di jaringan.
-Untuk tugas kuliah ini memang tidak perlu diakses dari luar.
+Security note: the server intentionally listens only on 127.0.0.1
+(localhost), so it cannot be reached from other computers on the network.
+This course project does not need outside access.
 """
 
 import json
@@ -30,10 +29,10 @@ from .scheduling.models import Process
 ROOT = Path(__file__).resolve().parents[1]
 WEB_DIR = ROOT / "web"
 
-# Windows tidak selalu mengenal tipe font web; daftarkan agar font lokal terlayani benar.
+# Windows does not always know the web font type; register it so local fonts are served correctly.
 mimetypes.add_type("font/woff2", ".woff2")
 
-# Batas atas untuk mencegah permintaan dari web membuat server kewalahan.
+# Upper limits that prevent web requests from overloading the server.
 LIMITS = {
     "max_processes": 12,
     "max_burst": 50,
@@ -52,7 +51,7 @@ def _clamp(value: int, low: int, high: int) -> int:
 
 
 def _integer(value, label: str, low: int, high: int) -> int:
-    """Terima integer JSON/string integer; jangan mengubah masukan diam-diam."""
+    """Accept a JSON integer or integer string; never silently change the input."""
     if isinstance(value, str) and re.fullmatch(r"-?\d+", value.strip()):
         value = int(value)
     if type(value) is not int or not low <= value <= high:
@@ -61,12 +60,12 @@ def _integer(value, label: str, low: int, high: int) -> int:
 
 
 # ======================================================================
-# Handler untuk setiap endpoint API
+# Handlers for each API endpoint
 # ======================================================================
 
 
 def api_scheduling(payload: dict) -> dict:
-    """POST /api/scheduling - jalankan satu atau semua algoritma."""
+    """POST /api/scheduling - run one algorithm or all of them."""
     raw = payload.get("processes")
     if not isinstance(raw, list) or not raw:
         raise ValueError("process list must not be empty")
@@ -141,7 +140,7 @@ def api_race(payload: dict) -> dict:
 
 
 def api_producer_consumer(payload: dict) -> dict:
-    """POST /api/ipc/producer-consumer - simulasi bounded buffer."""
+    """POST /api/ipc/producer-consumer - bounded buffer simulation."""
     return producer_consumer.run_demo(
         capacity=_integer(payload.get("capacity", 5), "Capacity", 1, LIMITS["max_buffer"]),
         n_producers=_integer(payload.get("producers", 1), "Number of producers", 1, 5),
@@ -162,7 +161,7 @@ def api_philosophers(payload: dict) -> dict:
 
 
 def api_bankers(payload: dict) -> dict:
-    """POST /api/deadlock/bankers - safety check dan resource request."""
+    """POST /api/deadlock/bankers - safety check and resource request."""
     if payload.get("example") == "unsafe":
         state = bankers.unsafe_example()
     elif payload.get("allocation"):
@@ -187,7 +186,7 @@ def api_bankers(payload: dict) -> dict:
 
 
 def api_detection(payload: dict) -> dict:
-    """POST /api/deadlock/detection - deteksi dan recovery."""
+    """POST /api/deadlock/detection - detection and recovery."""
     kind = str(payload.get("kind", "graph")).lower()
 
     if kind == "graph":
@@ -265,13 +264,13 @@ class Handler(BaseHTTPRequestHandler):
     server_version = "SimulatorOS/1.0"
 
     def log_message(self, fmt: str, *args) -> None:
-        # Hanya catat yang penting, supaya jendela terminal tidak penuh
-        # oleh baris permintaan berkas statis.
+        # Log only what matters, so the terminal window is not flooded
+        # with static file request lines.
         msg = fmt % args
         if "/api/" in msg or " 4" in msg or " 5" in msg:
             print(f"  [server] {msg}")
 
-    # ---------- utilitas balasan ----------
+    # ---------- response helpers ----------
 
     def _send_json(self, obj: dict, status: int = 200) -> None:
         body = json.dumps(obj, ensure_ascii=False, default=str).encode("utf-8")
@@ -285,15 +284,15 @@ class Handler(BaseHTTPRequestHandler):
     def _send_error_json(self, status: int, message: str, detail: str = "") -> None:
         self._send_json({"error": message, "detail": detail}, status=status)
 
-    # ---------- GET: berkas statis ----------
+    # ---------- GET: static files ----------
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path
 
         if path.startswith("/api/"):
-            # Beberapa endpoint boleh dipanggil lewat GET agar mudah diuji
-            # langsung dari address bar browser.
+            # Endpoints may also be called with GET so they are easy to test
+            # straight from the browser address bar.
             fn = ROUTES.get(path)
             if not fn:
                 self._send_error_json(404, f"Endpoint {path} not found")
@@ -305,7 +304,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/":
             path = "/index.html"
 
-        # Cegah path traversal (misal /../../rahasia.txt).
+        # Prevent path traversal (e.g. /../../secret.txt).
         safe = re.sub(r"[^A-Za-z0-9._/\-]", "", path).lstrip("/")
         target = (WEB_DIR / safe).resolve()
         if not target.is_relative_to(WEB_DIR.resolve()):
@@ -359,39 +358,39 @@ class Handler(BaseHTTPRequestHandler):
         self._handle_api(fn, payload, path)
 
     def _handle_api(self, fn, payload: dict, path: str) -> None:
-        """Jalankan handler API dan ubah error menjadi balasan JSON yang rapi."""
+        """Run an API handler and turn errors into a clean JSON response."""
         try:
             self._send_json(fn(payload))
         except (ValueError, KeyError, TypeError) as e:
-            # Kesalahan masukan dari pengguna - bukan kerusakan program.
+            # Invalid user input - not a program fault.
             self._send_error_json(400, f"Invalid input: {e}")
         except Exception as e:  # noqa: BLE001
-            # Kerusakan tak terduga: catat ke terminal agar bisa diperbaiki,
-            # tapi jangan bocorkan seluruh traceback ke browser.
-            print(f"  [server] ERROR di {path}: {e}")
+            # Unexpected fault: log it to the terminal so it can be fixed,
+            # but do not leak the full traceback to the browser.
+            print(f"  [server] ERROR in {path}: {e}")
             traceback.print_exc()
             self._send_error_json(500, "An error occurred on the server", str(e))
 
 
 def serve(host: str = "127.0.0.1", port: int = 8000) -> None:
-    """Jalankan server sampai dihentikan dengan Ctrl+C."""
+    """Run the server until it is stopped with Ctrl+C."""
     if not WEB_DIR.is_dir():
-        raise SystemExit(f"Folder web/ tidak ditemukan di {WEB_DIR}")
+        raise SystemExit(f"Folder web/ not found at {WEB_DIR}")
 
     httpd = ThreadingHTTPServer((host, port), Handler)
     url = f"http://{host}:{port}"
     print()
     print("=" * 64)
-    print("  SIMULATOR SISTEM OPERASI")
+    print("  OPERATING SYSTEM SIMULATOR")
     print("=" * 64)
-    print(f"  Server berjalan di : {url}")
-    print("  Buka alamat di atas dengan browser (Chrome/Edge/Firefox).")
-    print("  Tekan Ctrl+C di jendela ini untuk menghentikan server.")
+    print(f"  Server running at : {url}")
+    print("  Open the address above in a browser (Chrome/Edge/Firefox).")
+    print("  Press Ctrl+C in this window to stop the server.")
     print("=" * 64)
     print()
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\n  Server dihentikan. Sampai jumpa.")
+        print("\n  Server stopped. Goodbye.")
     finally:
         httpd.server_close()

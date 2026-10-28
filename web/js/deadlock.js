@@ -1,12 +1,12 @@
 /* ===================================================================
-   Panel 3 - Deadlock: Banker's Algorithm, Deteksi, dan Recovery
+   Panel 3 - Deadlock: Banker's Algorithm, Detection, and Recovery
    =================================================================== */
 
-let bankerState = null; // keadaan terakhir, untuk mengisi pilihan proses
+let bankerState = null; // latest state, used to fill the process options
 
 /* ---------------- A. Banker's Algorithm ---------------- */
 
-/** Tabel Allocation / Max / Need / Available. */
+/** Allocation / Max / Need / Available table. */
 function bankerTable(st) {
   const res = st.resources;
   const head =
@@ -144,7 +144,7 @@ async function runBankerRequest(btn) {
 
 /* ---------------- B. Wait-For Graph ---------------- */
 
-/** Gambar Wait-For Graph: node proses, panah menunjukkan siapa menunggu siapa. */
+/** Draw the Wait-For Graph: process nodes, arrows show who waits for whom. */
 function wfgSVG(graph, cycles) {
   const procs = graph.processes;
   const n = procs.length;
@@ -166,7 +166,7 @@ function wfgSVG(graph, cycles) {
     list.forEach((to) => {
       const a = pos[from], b = pos[to];
       if (!a || !b) return;
-      // Pendekkan panah agar ujungnya tidak tertutup bulatan node.
+      // Shorten the arrow so its tip is not hidden by the node circle.
       const dx = b.x - a.x, dy = b.y - a.y;
       const len = Math.hypot(dx, dy) || 1;
       const pad = 24;
@@ -240,7 +240,7 @@ function graphHTML(d) {
     ${logBlock(det.log, "View graph construction and cycle detection process")}`;
 }
 
-/* ---------------- C. Banyak instance + recovery ---------------- */
+/* ---------------- C. Multiple instances + recovery ---------------- */
 
 function multiHTML(d) {
   const st = d.state, det = d.detection;

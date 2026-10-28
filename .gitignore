@@ -1,0 +1,25 @@
+# Documents (managed locally by the owner, not uploaded)
+*.md
+docs/
+output/
+
+# Report & packaging pipeline (depends on docs/, managed locally)
+scripts/report_content.py
+scripts/build_report.py
+scripts/collect_evidence.py
+scripts/analyze_timing.py
+scripts/report_screenshots.cjs
+scripts/package_project.py
+scripts/check_package.py
+
+# Python
+__pycache__/
+*.pyc
+
+# Local tooling (the .tools/python runtime IS uploaded because mulai.bat uses it)
+.tools/packages/
+.tools/browser/
+.tools/sources/
+.tools/package-check-*/
+.tools/python-3.13.1.zip
+.tools/*.py

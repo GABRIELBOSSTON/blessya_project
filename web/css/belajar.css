@@ -1,7 +1,7 @@
 ﻿/* ===================================================================
-   Halaman utama (index.html). Gaya shadcn: permukaan putih, garis tipis,
-   tombol hitam, status eksplisit. Semua nilai berasal dari tokens.css.
-   Nama kelas dipertahankan karena dipakai belajar.js dan tes browser.
+   Main page (index.html). shadcn style: white surfaces, thin borders,
+   black buttons, explicit states. All values come from tokens.css.
+   Class names are kept because belajar.js and the browser tests use them.
    =================================================================== */
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -22,7 +22,7 @@ button { cursor: pointer; }
 button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
 
-/* Fokus keyboard selalu terlihat: cincin hitam 2px, jarak 2px */
+/* Keyboard focus is always visible: 2px black ring, 2px offset */
 :is(button, a, input, select, summary, .gantt-scroll):focus-visible {
   outline: 2px solid var(--color-ring);
   outline-offset: 2px;
@@ -81,7 +81,7 @@ h1, h2, h3, h4 { margin: 0; color: var(--color-text); letter-spacing: -.01em; }
   background: var(--color-surface);
 }
 
-/* ---------- Tata letak ---------- */
+/* ---------- Layout ---------- */
 main {
   max-width: 1180px;
   margin: 0 auto;
@@ -256,7 +256,7 @@ select {
   margin-top: var(--space-5);
 }
 
-/* ---------- Tombol ---------- */
+/* ---------- Buttons ---------- */
 .primary, .secondary {
   display: inline-flex;
   align-items: center;
@@ -306,7 +306,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .presets { display: flex; gap: var(--space-2); }
 .presets button { flex: 1; min-height: 36px; padding: 0 var(--space-2); font-size: var(--text-xs); }
 
-/* ---------- Pesan kesalahan ---------- */
+/* ---------- Error messages ---------- */
 .error {
   display: flex;
   gap: var(--space-2);
@@ -333,7 +333,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   font-weight: 700;
 }
 
-/* ---------- Details (bagian lipat) ---------- */
+/* ---------- Details (collapsible sections) ---------- */
 details summary {
   display: flex;
   align-items: center;
@@ -369,7 +369,7 @@ details p { margin: var(--space-2) 0; }
 }
 .assumptions strong { color: var(--color-text); }
 
-/* ---------- Tabel ---------- */
+/* ---------- Tables ---------- */
 .table-scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 th {
@@ -412,7 +412,7 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 .delete:hover:not(:disabled) { background: var(--color-danger-bg); color: var(--color-danger-fg); }
 
-/* ---------- Keadaan kosong & memuat ---------- */
+/* ---------- Empty & loading states ---------- */
 .empty {
   display: flex;
   flex-direction: column;
@@ -479,7 +479,7 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ---------- Hasil ---------- */
+/* ---------- Results ---------- */
 .results { min-width: 0; }
 .results .card + .card { margin-top: var(--space-4); }
 .result-heading {
@@ -693,7 +693,7 @@ footer {
 }
 footer a { white-space: nowrap; font-weight: 500; }
 
-/* ---------- Responsif ---------- */
+/* ---------- Responsive ---------- */
 @media (max-width: 900px) {
   .workspace { grid-template-columns: 320px minmax(0, 1fr); gap: var(--space-4); }
   main { padding: 0 var(--space-4); }

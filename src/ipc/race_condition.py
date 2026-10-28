@@ -1,37 +1,37 @@
-"""Pembuktian race condition dengan thread sungguhan.
+"""Demonstrating a race condition with real threads.
 
-Materi: Process and Threads + IPC (critical section, mutual exclusion)
+Topic: Process and Threads + IPC (critical section, mutual exclusion)
 
-Ini demo paling penting untuk memahami kenapa sinkronisasi dibutuhkan.
-Beberapa thread menaikkan satu variabel bersama sebanyak N kali. Secara
-matematika hasilnya harus n_threads * N. Tanpa lock, hasilnya lebih kecil.
+This is the key demo for understanding why synchronization is needed.
+Several threads increment one shared variable N times each. Mathematically
+the result must be n_threads * N. Without a lock, the result is smaller.
 
-Penyebabnya: operasi `counter += 1` TIDAK atomic. Di tingkat mesin ia
-terdiri dari tiga langkah terpisah:
-    1. READ   : baca nilai counter dari memori ke register
-    2. MODIFY : tambah 1 di register
-    3. WRITE  : tulis kembali ke memori
+The cause: the operation `counter += 1` is NOT atomic. At machine level it
+consists of three separate steps:
+    1. READ   : load the counter value from memory into a register
+    2. MODIFY : add 1 in the register
+    3. WRITE  : store it back to memory
 
-Kalau thread A disela tepat setelah langkah 1, lalu thread B menyelesaikan
-seluruh 1-2-3, maka ketika A melanjutkan ia menulis nilai lama+1 dan
-menimpa hasil kerja B. Satu increment hilang. Inilah "lost update".
+If thread A is interrupted right after step 1, and thread B then completes
+all of 1-2-3, when A resumes it writes the old value + 1 and overwrites
+B's work. One increment is lost. This is the "lost update".
 
-CATATAN PENTING TENTANG METODE (jangan dihilangkan dari laporan)
----------------------------------------------------------------
-Di CPython ada Global Interpreter Lock (GIL) yang membuat perpindahan
-thread relatif jarang. Akibatnya, pada loop yang sangat sempit race
-condition sering TIDAK muncul walau bug-nya ada. Karena itu kelas
-`UnsafeCounter` memanggil `time.sleep(0)` di antara READ dan WRITE.
+IMPORTANT NOTE ON METHOD
+------------------------
+CPython has a Global Interpreter Lock (GIL) that makes thread switches
+relatively rare. As a result, in a very tight loop the race condition
+often does NOT show up even though the bug exists. That is why
+`UnsafeCounter` calls `time.sleep(0)` between READ and WRITE.
 
-`time.sleep(0)` tidak menidurkan apa pun - ia hanya memaksa thread
-menyerahkan CPU pada titik itu. Jadi kita TIDAK menambah bug baru:
-kita hanya mengatur agar preemption terjadi tepat di saat terburuk,
-sehingga bug yang memang sudah ada menjadi teramati setiap kali.
+`time.sleep(0)` does not actually sleep - it only forces the thread to
+yield the CPU at that point. So we do NOT introduce a new bug: we only
+arrange for preemption to happen at the worst possible moment, making
+the existing bug observable every time.
 
-Justru inilah sifat paling berbahaya dari race condition: ia bergantung
-pada waktu. Tanpa paksaan ini program yang SALAH bisa lulus pengujian
-ratusan kali, lalu rusak di komputer lain atau saat beban tinggi.
-Fungsi `run_demo(force_preemption=False)` menunjukkan hal itu.
+This is exactly the most dangerous property of a race condition: it
+depends on timing. Without this forcing, a WRONG program can pass tests
+hundreds of times and then break on another computer or under heavy load.
+The function `run_demo(force_preemption=False)` demonstrates this.
 """
 
 import sys
@@ -40,7 +40,7 @@ import time
 
 
 class UnsafeCounter:
-    """Counter tanpa proteksi. Sengaja dibuat rawan."""
+    """Counter without protection. Deliberately unsafe."""
 
     def __init__(self, force_preemption: bool = True) -> None:
         self.value = 0
@@ -49,25 +49,25 @@ class UnsafeCounter:
     def increment(self) -> None:
         current = self.value  # 1. READ
         if self.force_preemption:
-            # Menyerahkan CPU tepat di tengah critical section.
-            # Di sinilah thread lain menyelipkan increment-nya dan
-            # hasil kerjanya akan tertimpa oleh baris WRITE di bawah.
+            # Yield the CPU right in the middle of the critical section.
+            # This is where another thread slips in its increment, and its
+            # work will be overwritten by the WRITE line below.
             time.sleep(0)
         current = current + 1  # 2. MODIFY
         self.value = current  # 3. WRITE
 
 
 class SafeCounter:
-    """Counter yang sama, dilindungi mutex (Lock).
+    """The same counter, protected by a mutex (Lock).
 
-    Lock menjamin mutual exclusion: hanya satu thread boleh berada di
-    critical section pada satu waktu. Thread lain yang mencoba masuk akan
-    diblokir sampai lock dilepas.
+    The lock guarantees mutual exclusion: only one thread may be inside the
+    critical section at a time. Other threads that try to enter are blocked
+    until the lock is released.
 
-    Perhatikan bahwa `time.sleep(0)` tetap ada di dalam critical section.
-    Artinya thread MASIH berpindah di tengah operasi, tapi hasilnya tetap
-    benar. Ini bukti bahwa yang menyelamatkan kita adalah lock-nya,
-    bukan keberuntungan waktu.
+    Note that `time.sleep(0)` is still inside the critical section. Threads
+    STILL switch in the middle of the operation, yet the result stays
+    correct. This proves it is the lock that protects us, not lucky
+    timing.
     """
 
     def __init__(self, force_preemption: bool = True) -> None:
@@ -76,13 +76,13 @@ class SafeCounter:
         self._lock = threading.Lock()
 
     def increment(self) -> None:
-        with self._lock:  # ---- masuk critical section ----
+        with self._lock:  # ---- enter critical section ----
             current = self.value
             if self.force_preemption:
                 time.sleep(0)
             current = current + 1
             self.value = current
-        # ---- keluar critical section, lock otomatis dilepas ----
+        # ---- leave critical section, lock released automatically ----
 
 
 def _hammer(counter, times: int) -> None:
@@ -106,11 +106,12 @@ def run_demo(
     increments: int = 2_000,
     force_preemption: bool = True,
 ) -> dict:
-    """Jalankan versi tidak aman dan versi aman, lalu bandingkan.
+    """Run the unsafe and the safe version, then compare them.
 
-    force_preemption=True  -> bug muncul hampir selalu (untuk demonstrasi)
-    force_preemption=False -> bug sering tidak muncul walau kode tetap salah
-                              (untuk menunjukkan bahaya bug non-deterministik)
+    force_preemption=True  -> the bug almost always appears (for demonstration)
+    force_preemption=False -> the bug often does not appear even though the code
+                              is still wrong (shows the danger of
+                              non-deterministic bugs)
     """
     expected = n_threads * increments
     log: list[str] = []
@@ -186,12 +187,12 @@ def run_trials(
     increments: int = 2_000,
     force_preemption: bool = True,
 ) -> dict:
-    """Ulangi demo beberapa kali untuk membuktikan sifat non-deterministik.
+    """Repeat the demo several times to show its non-deterministic nature.
 
-    Hasilnya cocok dijadikan tabel di laporan: kolom percobaan, hasil tanpa
-    lock, selisih dari nilai benar, dan hasil dengan lock. Perhatikan bahwa
-    kolom "tanpa lock" berbeda-beda tiap percobaan, sedangkan kolom "dengan
-    lock" selalu sama.
+    The result fits a table: trial, result without lock, difference from the
+    correct value, and result with lock. Note that the "without lock" column
+    differs between trials, whereas the "with lock" column is always the
+    same.
     """
     rows = []
     for i in range(trials):
@@ -227,19 +228,19 @@ def run_trials(
 
 if __name__ == "__main__":
     print("=" * 72)
-    print("DEMO 1 - RACE CONDITION DENGAN PREEMPTION DIPAKSA")
+    print("DEMO 1 - RACE CONDITION WITH FORCED PREEMPTION")
     print("=" * 72)
     for line in run_demo(force_preemption=True)["log"]:
         print(line)
 
     print()
     print("=" * 72)
-    print("DEMO 2 - PENGULANGAN 5 KALI (sifat non-deterministik)")
+    print("DEMO 2 - REPEATED 5 TIMES (non-deterministic behavior)")
     print("=" * 72)
     t = run_trials(trials=5)
     print(
-        f"{'Percobaan':>10} {'Seharusnya':>12} {'Tanpa Lock':>12} "
-        f"{'Hilang':>9} {'Rusak %':>9} {'Dengan Lock':>12}"
+        f"{'Trial':>10} {'Expected':>12} {'No Lock':>12} "
+        f"{'Lost':>9} {'Broken %':>9} {'With Lock':>12}"
     )
     for r in t["trials"]:
         print(
@@ -251,18 +252,18 @@ if __name__ == "__main__":
 
     print()
     print("=" * 72)
-    print("DEMO 3 - PREEMPTION ALAMI (kenapa bug ini berbahaya)")
+    print("DEMO 3 - NATURAL PREEMPTION (why this bug is dangerous)")
     print("=" * 72)
     nat = run_trials(trials=5, force_preemption=False)
     for r in nat["trials"]:
-        status = "RUSAK" if r["lost"] else "lolos"
+        status = "BROKEN" if r["lost"] else "passed"
         print(
-            f"  percobaan {r['trial']}: hasil {r['unsafe']:,} "
-            f"dari {r['expected']:,} -> {status}"
+            f"  trial {r['trial']}: result {r['unsafe']:,} "
+            f"of {r['expected']:,} -> {status}"
         )
     print()
     print(f"  {nat['conclusion']}")
     print(
-        "  Kode di Demo 3 SAMA SALAHNYA dengan Demo 1. Bedanya hanya keberuntungan\n"
-        "  penjadwalan. Inilah sebabnya race condition bisa lolos pengujian."
+        "  The code in Demo 3 is JUST AS WRONG as in Demo 1. The only difference is\n"
+        "  scheduling luck. This is why race conditions can slip through testing."
     )

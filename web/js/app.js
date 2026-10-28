@@ -1,5 +1,5 @@
 /* ===================================================================
-   Pengatur tab dan penyalaan awal semua panel.
+   Tab controller and initial startup of all panels.
    =================================================================== */
 
 function initTabs() {
@@ -22,9 +22,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initIPC();
   initDeadlock();
 
-  // Jalankan panel penjadwalan sekali di awal, supaya halaman tidak
-  // tampak kosong saat pertama dibuka dan pengguna langsung melihat
-  // contoh hasil tanpa perlu menekan apa pun.
+  // Run the scheduling panel once at startup so the page does not look
+  // empty when first opened and the user immediately sees a sample
+  // result without pressing anything.
   const btn = $("#run-sched");
   if (btn) btn.click();
 });

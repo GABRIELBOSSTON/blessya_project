@@ -1,11 +1,11 @@
-"""Lima algoritma penjadwalan CPU.
+"""Five CPU scheduling algorithms.
 
-Setiap fungsi menerima daftar Process dan mengembalikan ScheduleResult.
-Selain hasil angka, setiap algoritma juga menulis `log`: penjelasan
-langkah-per-langkah keputusan scheduler. Log inilah yang membuat program
-ini bersifat edukatif, bukan sekadar menampilkan hasil akhir.
+Each function takes a list of Process objects and returns a ScheduleResult.
+Besides the numbers, every algorithm also writes a `log`: a step-by-step
+explanation of the scheduler's decisions. This log is what makes the
+program educational rather than just showing the final result.
 
-Materi: Process Scheduling (non-preemptive & preemptive)
+Topic: Process Scheduling (non-preemptive & preemptive)
 """
 
 from .models import (
@@ -22,9 +22,9 @@ from .models import (
 def fcfs(processes: list[Process]) -> ScheduleResult:
     """First Come First Served - non-preemptive.
 
-    Proses dilayani murni urut waktu kedatangan. Sederhana dan adil secara
-    urutan, tapi rawan "convoy effect": satu proses panjang di depan
-    membuat semua proses pendek di belakangnya menunggu lama.
+    Processes are served strictly in order of arrival. Simple and fair in
+    terms of order, but prone to the "convoy effect": one long process at
+    the front makes every short process behind it wait a long time.
     """
     validate_processes(processes)
     res = ScheduleResult(algorithm="FCFS (First Come First Served)")
@@ -53,12 +53,12 @@ def fcfs(processes: list[Process]) -> ScheduleResult:
 def sjf(processes: list[Process]) -> ScheduleResult:
     """Shortest Job First - non-preemptive.
 
-    Dari semua proses yang SUDAH tiba, pilih yang burst-nya paling pendek.
-    Optimal untuk average waiting time jika semua pekerjaan siap bersamaan;
-    kedatangan berbeda memerlukan asumsi tambahan. Algoritma ini
-    tidak bisa dipakai apa adanya di sistem nyata karena burst time proses
-    tidak diketahui sebelum proses dijalankan (hanya bisa diprediksi).
-    Risiko lain: starvation untuk proses yang burst-nya besar.
+    Among the processes that have ALREADY arrived, pick the one with the
+    shortest burst. Optimal for average waiting time when all jobs are ready
+    at the same time; different arrival times need extra assumptions. It
+    cannot be used as-is in real systems because a process's burst time is
+    not known before it runs (it can only be predicted).
+    Another risk: starvation of processes with long bursts.
     """
     validate_processes(processes)
     res = ScheduleResult(algorithm="SJF (Shortest Job First)")
@@ -95,11 +95,11 @@ def sjf(processes: list[Process]) -> ScheduleResult:
 
 
 def srtf(processes: list[Process]) -> ScheduleResult:
-    """Shortest Remaining Time First - versi preemptive dari SJF.
+    """Shortest Remaining Time First - the preemptive version of SJF.
 
-    Disimulasikan tick-per-tick (1 satuan waktu). Pada setiap tick scheduler
-    memeriksa ulang: adakah proses dengan remaining time lebih kecil dari
-    yang sedang jalan? Kalau ada, proses yang berjalan di-preempt.
+    Simulated tick by tick (1 time unit). At every tick the scheduler checks
+    again: is there a process with less remaining time than the running one?
+    If so, the running process is preempted.
     """
     validate_processes(processes)
     res = ScheduleResult(algorithm="SRTF (Shortest Remaining Time First, preemptive)")
@@ -152,16 +152,15 @@ def srtf(processes: list[Process]) -> ScheduleResult:
 
 
 def round_robin(processes: list[Process], quantum: int = 2) -> ScheduleResult:
-    """Round Robin - preemptive berbasis time quantum.
+    """Round Robin - preemptive, based on a time quantum.
 
-    Setiap proses mendapat CPU maksimal `quantum` satuan waktu, lalu
-    dipindahkan ke belakang antrian. Inilah algoritma yang dipakai sistem
-    interaktif: response time-nya merata, tidak ada proses yang menunggu
-    tanpa batas.
+    Each process gets the CPU for at most `quantum` time units, then moves
+    to the back of the queue. This is the algorithm interactive systems use:
+    response times are even and no process waits indefinitely.
 
-    Pemilihan quantum adalah trade-off inti:
-      - quantum terlalu besar -> perilakunya kembali seperti FCFS
-      - quantum terlalu kecil -> overhead context switch mendominasi
+    Choosing the quantum is the core trade-off:
+      - quantum too large -> behaves like FCFS again
+      - quantum too small -> context switch overhead dominates
     """
     validate_processes(processes)
     if type(quantum) is not int or quantum <= 0:
@@ -176,7 +175,7 @@ def round_robin(processes: list[Process], quantum: int = 2) -> ScheduleResult:
     idx = 0
 
     def admit(upto: int) -> None:
-        """Masukkan semua proses yang tiba sampai waktu `upto` ke antrian."""
+        """Add every process that has arrived up to time `upto` to the queue."""
         nonlocal idx
         while idx < len(arrivals) and arrivals[idx].arrival <= upto:
             queue.append(arrivals[idx].pid)
@@ -202,9 +201,9 @@ def round_robin(processes: list[Process], quantum: int = 2) -> ScheduleResult:
         clock += slice_len
         remaining[pid] -= slice_len
 
-        # Proses yang tiba SELAMA slice ini masuk antrian lebih dulu, baru
-        # proses yang habis quantum-nya dimasukkan ke belakang. Urutan ini
-        # penting: kalau dibalik, hasil Gantt chart akan berbeda.
+        # Processes that arrive DURING this slice join the queue first, then
+        # the process whose quantum expired goes to the back. This order
+        # matters: reversing it would produce a different Gantt chart.
         admit(clock)
         if remaining[pid] > 0:
             queue.append(pid)
@@ -223,12 +222,12 @@ def round_robin(processes: list[Process], quantum: int = 2) -> ScheduleResult:
 
 
 def priority(processes: list[Process], preemptive: bool = False) -> ScheduleResult:
-    """Priority Scheduling. Angka prioritas lebih kecil = lebih penting.
+    """Priority Scheduling. A smaller priority number = more important.
 
-    Masalah klasiknya adalah starvation: proses prioritas rendah bisa tidak
-    pernah dapat CPU. Solusi umumnya aging, yaitu prioritas proses yang lama
-    menunggu dinaikkan perlahan. Aging TIDAK diimplementasikan di sini agar
-    efek starvation-nya bisa diamati dan dibahas di laporan.
+    The classic problem is starvation: a low-priority process may never get
+    the CPU. The usual fix is aging, which gradually raises the priority of
+    processes that have waited long. Aging is NOT implemented here so the
+    starvation effect can be observed and discussed.
     """
     validate_processes(processes)
     label = "Priority (preemptive)" if preemptive else "Priority (non-preemptive)"
@@ -303,7 +302,7 @@ ALGORITHMS = {
 
 
 def run(name: str, processes: list[Process], **kwargs) -> ScheduleResult:
-    """Jalankan satu algoritma berdasarkan namanya. Dipakai oleh server web."""
+    """Run one algorithm by name. Used by the web server."""
     key = name.lower()
     if key not in ALGORITHMS:
         raise ValueError(
@@ -313,7 +312,7 @@ def run(name: str, processes: list[Process], **kwargs) -> ScheduleResult:
 
 
 def compare_all(processes: list[Process], quantum: int = 2) -> list[ScheduleResult]:
-    """Jalankan semua algoritma pada data yang sama, untuk tabel perbandingan."""
+    """Run every algorithm on the same data, for the comparison table."""
     return [
         fcfs(processes),
         sjf(processes),

@@ -1,5 +1,5 @@
 /* ===================================================================
-   Panel 1 - Penjadwalan Proses
+   Panel 1 - Process Scheduling
    =================================================================== */
 
 const SCHED_SAMPLE = [
@@ -9,7 +9,7 @@ const SCHED_SAMPLE = [
   { pid: "P4", arrival: 3, burst: 5, priority: 2 },
 ];
 
-/** Gambar satu baris data proses di tabel masukan. */
+/** Render one process row in the input table. */
 function procRow(p) {
   return `<tr>
     <td><input class="pid" value="${esc(p.pid)}" maxlength="8"></td>
@@ -24,7 +24,7 @@ function renderProcTable(list) {
   $("#proc-table tbody").innerHTML = list.map(procRow).join("");
 }
 
-/** Baca kembali isi tabel masukan menjadi daftar objek. */
+/** Read the input table back into a list of objects. */
 function readProcTable() {
   return $$("#proc-table tbody tr").map((tr, i) => ({
     pid: $(".pid", tr).value.trim() || `P${i + 1}`,
@@ -34,7 +34,7 @@ function readProcTable() {
   }));
 }
 
-/** Gantt chart: satu batang per segmen, lebarnya sebanding durasinya. */
+/** Gantt chart: one bar per segment, width proportional to its duration. */
 function ganttHTML(timeline) {
   if (!timeline.length) return "";
   const total = timeline[timeline.length - 1].end;
@@ -49,7 +49,7 @@ function ganttHTML(timeline) {
     })
     .join("");
 
-  // Penanda waktu di bawah: titik awal dan setiap batas segmen.
+  // Time markers below: the start point and every segment boundary.
   const marks = [timeline[0].start, ...timeline.map((s) => s.end)];
   const ticks = [...new Set(marks)]
     .map((t) => `<span class="gantt-tick" style="left:${(t / total) * 100}%">${t}</span>`)
@@ -101,7 +101,7 @@ function schedResultHTML(r, best) {
   </div>`;
 }
 
-/** Tabel ringkas yang membandingkan semua algoritma sekaligus. */
+/** Compact table comparing every algorithm at once. */
 function comparisonTable(results, insight) {
   const minWait = Math.min(...results.map((r) => r.summary.avg_waiting));
   const minResp = Math.min(...results.map((r) => r.summary.avg_response));
@@ -184,8 +184,8 @@ function initScheduling() {
     clearErr("#sched-err");
   });
 
-  // Satu listener untuk semua tombol hapus, termasuk baris yang
-  // ditambahkan nanti (event delegation).
+  // One listener for every delete button, including rows added
+  // later (event delegation).
   $("#proc-table").addEventListener("click", (e) => {
     if (!e.target.classList.contains("del")) return;
     if ($$("#proc-table tbody tr").length <= 1) {

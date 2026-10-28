@@ -1,32 +1,31 @@
-"""Deteksi Deadlock dan Recovery.
+"""Deadlock Detection and Recovery.
 
-Materi: Deadlock - Ostrich Algorithm, Detection & Recovery
+Topic: Deadlock - Ostrich Algorithm, Detection & Recovery
 
-Berbeda dari avoidance (Banker's), pendekatan di sini membiarkan deadlock
-TERJADI, lalu mendeteksi dan memperbaikinya. Ini lebih praktis karena
-tidak butuh deklarasi kebutuhan maksimal di awal.
+Unlike avoidance (Banker's), the approach here lets deadlocks HAPPEN, then
+detects and resolves them. This is more practical because it does not need
+maximum demands to be declared up front.
 
-Modul ini memuat tiga hal:
+This module contains three parts:
 
 1. OSTRICH ALGORITHM
-   Secara sengaja TIDAK melakukan apa pun. Namanya dari perumpamaan burung
-   unta yang menyembunyikan kepala di pasir. Ini bukan lelucon: UNIX dan
-   Windows benar-benar memakainya untuk banyak jenis sumber daya, dengan
-   alasan ekonomi. Kalau deadlock terjadi sekali setahun sementara
-   pencegahannya memperlambat sistem setiap hari, maka merestart proses
-   lebih murah daripada mencegahnya. Keputusannya adalah trade-off
-   rekayasa, bukan kemalasan.
+   Deliberately does NOTHING. The name comes from the image of an ostrich
+   hiding its head in the sand. It is used in practice: UNIX and Windows
+   apply it to many resource types for economic reasons. If a deadlock
+   happens once a year while preventing it slows the system every day,
+   restarting processes is cheaper than prevention. The choice is an
+   engineering trade-off, not laziness.
 
 2. DETECTION
-   - Kasus satu instance per sumber daya -> Wait-For Graph, cari siklus.
-   - Kasus banyak instance per sumber daya -> algoritma mirip Safety
-     Algorithm, tapi memakai matriks Request (permintaan NYATA saat ini)
-     bukan Need (kebutuhan maksimal). Perbedaan ini penting:
-     Need itu "mungkin diminta nanti", Request itu "sedang diminta".
+   - One instance per resource -> Wait-For Graph, look for a cycle.
+   - Multiple instances per resource -> an algorithm similar to the Safety
+     Algorithm, but using the Request matrix (CURRENT actual requests)
+     instead of Need (maximum demand). The difference matters:
+     Need is "may be requested later", Request is "requested right now".
 
 3. RECOVERY
-   - Terminasi korban: pilih proses untuk dimatikan, lepas sumber dayanya.
-   - Dilakukan berulang sampai tidak ada deadlock lagi.
+   - Victim termination: pick a process to kill and release its resources.
+   - Repeated until no deadlock remains.
 """
 
 from dataclasses import dataclass
@@ -38,10 +37,10 @@ from dataclasses import dataclass
 
 
 def ostrich_algorithm(deadlock_detected: bool) -> dict:
-    """Mengabaikan masalah secara sengaja.
+    """Deliberately ignore the problem.
 
-    Diimplementasikan sebagai fungsi nyata agar bisa dibandingkan jujur
-    dengan strategi lain di laporan, bukan hanya dibahas sebagai teori.
+    Implemented as a real function so it can be compared fairly with the
+    other strategies, rather than only discussed as theory.
     """
     return {
         "strategy": "Ostrich Algorithm",
@@ -68,16 +67,16 @@ def ostrich_algorithm(deadlock_detected: bool) -> dict:
 
 
 # ======================================================================
-# 2a. DETECTION - Wait-For Graph (satu instance per sumber daya)
+# 2a. DETECTION - Wait-For Graph (one instance per resource)
 # ======================================================================
 
 
 @dataclass
 class ResourceGraph:
-    """Resource Allocation Graph untuk sumber daya instance tunggal.
+    """Resource Allocation Graph for single-instance resources.
 
-    held_by   : {sumber_daya: proses}  - sumber daya dipegang siapa
-    waiting   : {proses: sumber_daya}  - proses menunggu sumber daya apa
+    held_by   : {resource: process}  - which process holds each resource
+    waiting   : {process: resource}  - which resource each process waits for
     """
 
     processes: list[str]
@@ -98,11 +97,11 @@ class ResourceGraph:
                 raise ValueError(f"resource '{r}' not registered")
 
     def wait_for_graph(self) -> dict[str, list[str]]:
-        """Ubah Resource Allocation Graph menjadi Wait-For Graph.
+        """Convert the Resource Allocation Graph into a Wait-For Graph.
 
-        Caranya: hilangkan node sumber daya. Buat sisi P1 -> P2 jika P1
-        menunggu sumber daya yang sedang dipegang P2. Deadlock terjadi
-        jika dan hanya jika graf ini punya siklus.
+        Method: remove the resource nodes. Add an edge P1 -> P2 if P1 waits
+        for a resource currently held by P2. A deadlock exists if and only
+        if this graph has a cycle.
         """
         g: dict[str, list[str]] = {p: [] for p in self.processes}
         for p, r in self.waiting.items():
@@ -113,11 +112,11 @@ class ResourceGraph:
 
 
 def find_cycles(graph: dict[str, list[str]]) -> list[list[str]]:
-    """Cari semua siklus dalam graf berarah dengan DFS.
+    """Find every cycle in a directed graph using DFS.
 
-    Memakai pewarnaan tiga keadaan:
-      putih = belum dikunjungi, abu = sedang di jalur sekarang, hitam = selesai
-    Menemukan node abu-abu saat menelusuri berarti ada siklus.
+    Uses three-state coloring:
+      white = not visited, grey = on the current path, black = finished
+    Reaching a grey node while exploring means there is a cycle.
     """
     WHITE, GREY, BLACK = 0, 1, 2
     color = {n: WHITE for n in graph}
@@ -146,7 +145,7 @@ def find_cycles(graph: dict[str, list[str]]) -> list[list[str]]:
 
 
 def detect_single_instance(graph: ResourceGraph) -> dict:
-    """Deteksi deadlock pada sumber daya instance tunggal."""
+    """Detect deadlock for single-instance resources."""
     wfg = graph.wait_for_graph()
     log: list[str] = ["Building Wait-For Graph from Resource Allocation Graph:"]
 
@@ -188,17 +187,17 @@ def detect_single_instance(graph: ResourceGraph) -> dict:
 
 
 # ======================================================================
-# 2b. DETECTION - banyak instance per sumber daya
+# 2b. DETECTION - multiple instances per resource
 # ======================================================================
 
 
 @dataclass
 class MultiInstanceState:
-    """Keadaan sistem untuk deteksi dengan banyak instance.
+    """System state for multi-instance detection.
 
-    allocation : n x m, yang sedang dipegang
-    request    : n x m, yang SEDANG diminta sekarang (bukan kebutuhan maks)
-    available  : vektor m, yang masih bebas
+    allocation : n x m, currently held
+    request    : n x m, CURRENTLY requested (not the maximum demand)
+    available  : vector of m, still free
     """
 
     processes: list[str]
@@ -234,15 +233,15 @@ class MultiInstanceState:
 
 
 def detect_multi_instance(state: MultiInstanceState) -> dict:
-    """Detection Algorithm untuk banyak instance.
+    """Detection Algorithm for multiple instances.
 
-    Mirip Safety Algorithm, dengan DUA perbedaan penting:
-      1. Memakai Request (permintaan nyata), bukan Need (kebutuhan maks).
-      2. Proses dengan Allocation nol langsung ditandai selesai, karena
-         ia tidak memegang apa pun sehingga tidak bisa ikut memblokir.
+    Similar to the Safety Algorithm, with TWO important differences:
+      1. It uses Request (actual requests), not Need (maximum demand).
+      2. A process with zero Allocation is marked finished immediately,
+         because it holds nothing and therefore cannot block others.
 
-    Proses yang pada akhirnya tidak bisa ditandai selesai adalah proses
-    yang berada dalam keadaan deadlock.
+    Processes that can never be marked finished are the ones that are
+    deadlocked.
     """
     n, m = len(state.processes), len(state.resources)
     work = state.available[:]
@@ -323,21 +322,21 @@ def detect_multi_instance(state: MultiInstanceState) -> dict:
 def recover_by_termination(
     state: MultiInstanceState, strategy: str = "most_resources"
 ) -> dict:
-    """Pulihkan dari deadlock dengan mematikan proses korban satu per satu.
+    """Recover from deadlock by terminating victim processes one at a time.
 
-    Pilihan strategi pemilihan korban:
-      "most_resources"  - matikan yang memegang paling banyak sumber daya.
-                          Paling cepat memulihkan sistem.
-      "fewest_resources"- matikan yang memegang paling sedikit.
-                          Kerugian per korban kecil, tapi mungkin perlu
-                          mematikan lebih banyak proses.
-      "first"           - matikan yang indeksnya paling awal. Paling
-                          sederhana tapi sewenang-wenang.
+    Victim selection strategies:
+      "most_resources"  - kill the process holding the most resources.
+                          Restores the system fastest.
+      "fewest_resources"- kill the process holding the fewest.
+                          Smaller loss per victim, but more processes may
+                          need to be killed.
+      "first"           - kill the process with the lowest index. Simplest,
+                          but arbitrary.
 
-    Di sistem nyata pemilihan korban juga mempertimbangkan prioritas proses,
-    sudah berapa lama ia berjalan, dan apakah ia bisa di-restart dengan aman.
-    Proses yang sedang menulis ke basis data misalnya, tidak boleh
-    sembarangan dimatikan karena bisa meninggalkan data setengah jadi.
+    Real systems also consider process priority, how long it has run, and
+    whether it can be restarted safely. A process that is writing to a
+    database, for example, must not be killed carelessly because it could
+    leave half-written data behind.
     """
     valid = ("most_resources", "fewest_resources", "first")
     if strategy not in valid:
@@ -407,7 +406,7 @@ def recover_by_termination(
 
 
 def compare_recovery_strategies(state: MultiInstanceState) -> list[dict]:
-    """Bandingkan ketiga strategi pemilihan korban pada keadaan yang sama."""
+    """Compare the three victim selection strategies on the same state."""
     out = []
     for s in ("most_resources", "fewest_resources", "first"):
         r = recover_by_termination(state, strategy=s)
@@ -423,12 +422,12 @@ def compare_recovery_strategies(state: MultiInstanceState) -> list[dict]:
 
 
 # ======================================================================
-# Contoh data
+# Sample data
 # ======================================================================
 
 
 def deadlocked_graph() -> ResourceGraph:
-    """Siklus sederhana: P1 -> P2 -> P3 -> P1."""
+    """Simple cycle: P1 -> P2 -> P3 -> P1."""
     return ResourceGraph(
         processes=["P1", "P2", "P3"],
         resources=["R1", "R2", "R3"],
@@ -438,7 +437,7 @@ def deadlocked_graph() -> ResourceGraph:
 
 
 def safe_graph() -> ResourceGraph:
-    """Rantai tunggu tanpa siklus: P1 -> P2 -> P3, P3 tidak menunggu."""
+    """Wait chain without a cycle: P1 -> P2 -> P3, P3 is not waiting."""
     return ResourceGraph(
         processes=["P1", "P2", "P3"],
         resources=["R1", "R2", "R3"],
@@ -448,10 +447,10 @@ def safe_graph() -> ResourceGraph:
 
 
 def deadlocked_multi() -> MultiInstanceState:
-    """Keadaan deadlock dengan banyak instance.
+    """Deadlocked state with multiple instances.
 
-    Available [0,0,0] dan setiap proses meminta sesuatu yang tidak ada,
-    sementara semuanya memegang sumber daya. Tidak ada yang bisa maju.
+    Available is [0,0,0] and every process requests something unavailable
+    while all of them hold resources. None can make progress.
     """
     return MultiInstanceState(
         processes=["P0", "P1", "P2", "P3"],
@@ -473,7 +472,7 @@ def deadlocked_multi() -> MultiInstanceState:
 
 
 def recoverable_multi() -> MultiInstanceState:
-    """Keadaan yang bisa selesai sendiri tanpa recovery (contoh negatif)."""
+    """A state that can finish on its own without recovery (negative example)."""
     return MultiInstanceState(
         processes=["P0", "P1", "P2"],
         resources=["A", "B"],
@@ -485,49 +484,49 @@ def recoverable_multi() -> MultiInstanceState:
 
 if __name__ == "__main__":
     print("=" * 72)
-    print("BAGIAN 1 - OSTRICH ALGORITHM")
+    print("PART 1 - OSTRICH ALGORITHM")
     print("=" * 72)
     o = ostrich_algorithm(deadlock_detected=True)
-    print(f"Tindakan        : {o['action_taken']}")
+    print(f"Action taken    : {o['action_taken']}")
     print(f"Overhead        : {o['overhead']}")
-    print(f"Penjelasan      : {o['explanation']}")
-    print(f"Cocok dipakai   : {o['when_appropriate']}")
-    print(f"Tidak boleh di  : {o['when_unacceptable']}")
+    print(f"Explanation     : {o['explanation']}")
+    print(f"Appropriate when: {o['when_appropriate']}")
+    print(f"Unacceptable in : {o['when_unacceptable']}")
 
     print()
     print("=" * 72)
-    print("BAGIAN 2a - DETEKSI DENGAN WAIT-FOR GRAPH (instance tunggal)")
+    print("PART 2a - DETECTION WITH A WAIT-FOR GRAPH (single instance)")
     print("=" * 72)
-    print("\nKASUS A - ada siklus")
+    print("\nCASE A - with a cycle")
     print("-" * 72)
     for line in detect_single_instance(deadlocked_graph())["log"]:
         print(line)
 
-    print("\nKASUS B - tidak ada siklus")
+    print("\nCASE B - no cycle")
     print("-" * 72)
     for line in detect_single_instance(safe_graph())["log"]:
         print(line)
 
     print()
     print("=" * 72)
-    print("BAGIAN 2b - DETEKSI DENGAN BANYAK INSTANCE")
+    print("PART 2b - DETECTION WITH MULTIPLE INSTANCES")
     print("=" * 72)
     dm = deadlocked_multi()
-    print(f"{'Proses':<8} {'Allocation':<12} {'Request':<12}")
+    print(f"{'Process':<8} {'Allocation':<12} {'Request':<12}")
     for i, p in enumerate(dm.processes):
         print(f"{p:<8} {str(dm.allocation[i]):<12} {str(dm.request[i]):<12}")
     print(f"Available: {dm.available}\n")
     for line in detect_multi_instance(dm)["log"]:
         print(line)
 
-    print("\nPEMBANDING - keadaan yang TIDAK deadlock")
+    print("\nCOMPARISON - a state that is NOT deadlocked")
     print("-" * 72)
     for line in detect_multi_instance(recoverable_multi())["log"]:
         print(line)
 
     print()
     print("=" * 72)
-    print("BAGIAN 3 - RECOVERY DENGAN TERMINASI KORBAN")
+    print("PART 3 - RECOVERY BY VICTIM TERMINATION")
     print("=" * 72)
     rec = recover_by_termination(dm, strategy="most_resources")
     for line in rec["log"]:
@@ -536,11 +535,11 @@ if __name__ == "__main__":
     print(rec["summary"])
 
     print()
-    print("PERBANDINGAN STRATEGI PEMILIHAN KORBAN")
+    print("COMPARISON OF VICTIM SELECTION STRATEGIES")
     print("-" * 72)
-    print(f"{'Strategi':<20} {'Jumlah korban':<15} {'Korban':<25} Berhasil")
+    print(f"{'Strategy':<20} {'Victim count':<15} {'Victims':<25} Resolved")
     for c in compare_recovery_strategies(dm):
         print(
             f"{c['strategy']:<20} {c['victim_count']:<15} "
-            f"{', '.join(c['victims']):<25} {'ya' if c['resolved'] else 'tidak'}"
+            f"{', '.join(c['victims']):<25} {'yes' if c['resolved'] else 'no'}"
         )

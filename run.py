@@ -1,21 +1,20 @@
-"""Titik masuk utama program.
+"""Main entry point of the program.
 
-CARA PAKAI PALING MUDAH
------------------------
+QUICKEST WAY TO RUN
+-------------------
     py run.py
 
-Lalu buka http://127.0.0.1:8000 di browser.
+Then open http://127.0.0.1:8000 in a browser.
 
-CARA LAIN
----------
-    py run.py --port 9000     jalankan di nomor port lain
-    py run.py --no-browser    jangan buka browser otomatis
-    py run.py demo            jalankan semua demo di terminal (tanpa web)
-    py run.py test            jalankan pengujian kebenaran algoritma
+OTHER OPTIONS
+-------------
+    py run.py --port 9000     run on a different port
+    py run.py --no-browser    do not open the browser automatically
+    py run.py demo            run every demo in the terminal (no web UI)
+    py run.py test            run the algorithm correctness tests
 
-Berkas ini sengaja dibuat sederhana dan banyak komentar, karena inilah
-berkas pertama yang akan dibuka orang yang ingin tahu cara menjalankan
-program ini.
+This file is intentionally simple and well commented, because it is the
+first file people open when they want to know how to run the program.
 """
 
 import argparse
@@ -25,17 +24,17 @@ import time
 import webbrowser
 from pathlib import Path
 
-# Pastikan Python bisa menemukan folder src/ apa pun lokasi pemanggilannya.
+# Make sure Python can find the src/ folder regardless of where it is launched from.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
 def check_python_version() -> None:
-    """Program ini memakai sintaks `int | None` yang butuh Python 3.10+."""
+    """This program uses `int | None` syntax, which requires Python 3.10+."""
     if sys.version_info < (3, 10):
         raise SystemExit(
-            f"Program ini butuh Python 3.10 atau lebih baru.\n"
-            f"Python yang terpasang: {sys.version.split()[0]}\n"
-            f"Silakan perbarui Python di https://www.python.org/downloads/"
+            f"This program requires Python 3.10 or newer.\n"
+            f"Installed Python: {sys.version.split()[0]}\n"
+            f"Please update Python at https://www.python.org/downloads/"
         )
 
 
@@ -43,8 +42,8 @@ def run_web(port: int, open_browser: bool) -> None:
     from src.server import serve
 
     if open_browser:
-        # Browser dibuka dari thread terpisah dengan jeda singkat, supaya
-        # server sudah siap menerima permintaan saat halaman dimuat.
+        # Open the browser from a separate thread after a short delay, so the
+        # server is ready to accept requests when the page loads.
         def opener() -> None:
             time.sleep(1.0)
             webbrowser.open(f"http://127.0.0.1:{port}")
@@ -56,68 +55,68 @@ def run_web(port: int, open_browser: bool) -> None:
     except OSError as e:
         if getattr(e, "errno", None) in (48, 98, 10048):
             raise SystemExit(
-                f"Port {port} sedang dipakai program lain.\n"
-                f"Coba nomor port lain, contoh:  py run.py --port {port + 1}"
+                f"Port {port} is already in use by another program.\n"
+                f"Try a different port, for example:  py run.py --port {port + 1}"
             ) from e
         raise
 
 
 def run_demo() -> None:
-    """Jalankan semua demo di terminal, berguna untuk mengambil screenshot."""
+    """Run every demo in the terminal; useful for taking screenshots."""
     import runpy
 
     modules = [
-        ("PENJADWALAN PROSES", "src.scheduling.demo"),
+        ("PROCESS SCHEDULING", "src.scheduling.demo"),
         ("RACE CONDITION", "src.ipc.race_condition"),
         ("PRODUCER - CONSUMER", "src.ipc.producer_consumer"),
         ("DINING PHILOSOPHERS", "src.ipc.dining_philosophers"),
         ("BANKER'S ALGORITHM", "src.deadlock.bankers"),
-        ("DETEKSI & RECOVERY DEADLOCK", "src.deadlock.detection"),
+        ("DEADLOCK DETECTION & RECOVERY", "src.deadlock.detection"),
     ]
     for i, (title, mod) in enumerate(modules, 1):
         print()
         print("#" * 72)
-        print(f"#  DEMO {i} dari {len(modules)}: {title}")
+        print(f"#  DEMO {i} of {len(modules)}: {title}")
         print("#" * 72)
         try:
             runpy.run_module(mod, run_name="__main__")
         except Exception as e:  # noqa: BLE001
-            print(f"  Demo '{title}' gagal dijalankan: {e}")
+            print(f"  Demo '{title}' failed to run: {e}")
     print()
     print("#" * 72)
-    print("#  SELURUH DEMO SELESAI")
+    print("#  ALL DEMOS FINISHED")
     print("#" * 72)
 
 
 def run_tests() -> int:
-    """Jalankan berkas pengujian di folder tests/."""
+    """Run the test files in the tests/ folder."""
     import subprocess
 
     here = Path(__file__).resolve().parent
     files = sorted((here / "tests").glob("test_*.py"))
     if not files:
-        print("Tidak ada berkas pengujian di folder tests/")
+        print("No test files found in the tests/ folder")
         return 1
 
     failed = 0
     for f in files:
         print()
         print("#" * 72)
-        print(f"#  MENJALANKAN {f.name}")
+        print(f"#  RUNNING {f.name}")
         print("#" * 72)
         code = subprocess.call([sys.executable, str(f)], cwd=str(here))
         if code != 0:
             failed += 1
-            print(f"  -> {f.name} GAGAL")
+            print(f"  -> {f.name} FAILED")
         else:
-            print(f"  -> {f.name} lulus semua")
+            print(f"  -> {f.name} all passed")
 
     print()
     print("=" * 72)
     if failed:
-        print(f"HASIL: {failed} dari {len(files)} berkas pengujian GAGAL")
+        print(f"RESULT: {failed} of {len(files)} test files FAILED")
     else:
-        print(f"HASIL: seluruh {len(files)} berkas pengujian LULUS")
+        print(f"RESULT: all {len(files)} test files PASSED")
     print("=" * 72)
     return 1 if failed else 0
 
@@ -126,19 +125,19 @@ def main() -> int:
     check_python_version()
 
     ap = argparse.ArgumentParser(
-        description="Simulator Sistem Operasi - Scheduling, IPC, dan Deadlock",
-        epilog="Tanpa argumen apa pun, program menjalankan tampilan web.",
+        description="Operating System Simulator - Scheduling, IPC, and Deadlock",
+        epilog="Without any argument, the program starts the web interface.",
     )
     ap.add_argument(
         "mode",
         nargs="?",
         default="web",
         choices=["web", "demo", "test"],
-        help="web (bawaan) | demo (terminal) | test (pengujian)",
+        help="web (default) | demo (terminal) | test (run tests)",
     )
-    ap.add_argument("--port", type=int, default=8000, help="nomor port untuk mode web")
+    ap.add_argument("--port", type=int, default=8000, help="port number for web mode")
     ap.add_argument(
-        "--no-browser", action="store_true", help="jangan buka browser otomatis"
+        "--no-browser", action="store_true", help="do not open the browser automatically"
     )
     args = ap.parse_args()
 

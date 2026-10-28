@@ -1,11 +1,10 @@
-"""Uji seluruh endpoint API lewat HTTP sungguhan.
+"""Test every API endpoint over real HTTP.
 
-Jalankan:  py tests/test_api.py
+Run:  py tests/test_api.py
 
-Skrip ini menyalakan server di port tersendiri, menembaknya dengan
-permintaan HTTP seperti yang dilakukan browser, lalu memeriksa balasannya.
-Dengan begitu yang diuji bukan hanya fungsi Python-nya, tapi juga jalur
-lengkap dari browser sampai hasil.
+This script starts the server on its own port, sends it HTTP requests the
+way a browser does, and checks the responses. That way the test covers not
+only the Python functions but the full path from the browser to the result.
 """
 
 import json
@@ -32,10 +31,10 @@ def check(label: str, cond: bool, extra: str = "") -> None:
     global passed, failed
     if cond:
         passed += 1
-        print(f"  LULUS  {label}" + (f" -> {extra}" if extra else ""))
+        print(f"  PASS  {label}" + (f" -> {extra}" if extra else ""))
     else:
         failed += 1
-        print(f"  GAGAL  {label}" + (f" -> {extra}" if extra else ""))
+        print(f"  FAIL  {label}" + (f" -> {extra}" if extra else ""))
 
 
 def post(path: str, payload: dict) -> tuple[int, dict]:
@@ -65,24 +64,24 @@ srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
 BASE = f"http://127.0.0.1:{srv.server_port}"
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 time.sleep(0.6)
-print(f"Server uji berjalan di {BASE}\n")
+print(f"Test server running at {BASE}\n")
 
 try:
     print("=" * 70)
-    print("BERKAS STATIS")
+    print("STATIC FILES")
     print("=" * 70)
     st, body = get("/")
-    check("GET / mengembalikan HTML", st == 200 and b"<html" in body.lower(), f"{len(body)} byte")
+    check("GET / returns HTML", st == 200 and b"<html" in body.lower(), f"{len(body)} bytes")
     st, _ = get("/css/style.css")
     check("GET /css/style.css", st == 200)
-    st, _ = get("/berkas-tidak-ada.txt")
-    check("berkas tidak ada -> 404", st == 404)
+    st, _ = get("/missing-file.txt")
+    check("missing file -> 404", st == 404)
     st, _ = get("/../run.py")
-    check("path traversal ditolak", st in (403, 404), f"status {st}")
+    check("path traversal rejected", st in (403, 404), f"status {st}")
 
     print()
     print("=" * 70)
-    print("API PENJADWALAN")
+    print("SCHEDULING API")
     print("=" * 70)
     st, d = post(
         "/api/scheduling",
@@ -98,21 +97,21 @@ try:
         },
     )
     check("status 200", st == 200)
-    check("mengembalikan 6 algoritma", len(d.get("results", [])) == 6)
-    check("ada bagian insight", "insight" in d)
+    check("returns 6 algorithms", len(d.get("results", [])) == 6)
+    check("has an insight section", "insight" in d)
     r0 = d["results"][0]
-    check("setiap hasil punya timeline", bool(r0["timeline"]))
-    check("setiap hasil punya metrics", len(r0["metrics"]) == 4)
-    check("setiap hasil punya log", bool(r0["log"]))
+    check("every result has a timeline", bool(r0["timeline"]))
+    check("every result has metrics", len(r0["metrics"]) == 4)
+    check("every result has a log", bool(r0["log"]))
     check(
-        "total CPU terpakai = total burst",
+        "total CPU used = total burst",
         all(
             sum(s["duration"] for s in r["timeline"] if s["pid"] != "IDLE") == 26
             for r in d["results"]
         ),
     )
     check(
-        "rumus waiting = turnaround - burst",
+        "formula waiting = turnaround - burst",
         all(
             m["waiting"] == m["turnaround"] - m["burst"]
             for r in d["results"]
@@ -121,40 +120,40 @@ try:
     )
 
     st, d = post("/api/scheduling", {"algorithm": "fcfs", "processes": [{"burst": 5}]})
-    check("satu algoritma saja", st == 200 and len(d["results"]) == 1)
+    check("single algorithm only", st == 200 and len(d["results"]) == 1)
 
     st, d = post("/api/scheduling", {"processes": []})
-    check("daftar proses kosong -> 400", st == 400, d.get("error", "")[:48])
+    check("empty process list -> 400", st == 400, d.get("error", "")[:48])
 
-    st, d = post("/api/scheduling", {"algorithm": "tidakada", "processes": [{"burst": 2}]})
-    check("algoritma tak dikenal -> 400", st == 400)
+    st, d = post("/api/scheduling", {"algorithm": "nonexistent", "processes": [{"burst": 2}]})
+    check("unknown algorithm -> 400", st == 400)
 
     st, d = post(
         "/api/scheduling",
         {"processes": [{"pid": "A", "burst": 2}, {"pid": "A", "burst": 3}]},
     )
-    check("nama proses ganda -> 400", st == 400, d.get("error", "")[:48])
+    check("duplicate process name -> 400", st == 400, d.get("error", "")[:48])
 
     st, d = post("/api/scheduling", {"processes": [{"burst": 999}]})
     check(
-        "burst berlebihan ditolak dengan pesan jelas",
+        "excessive burst rejected with a clear message",
         st == 400 and "Burst time" in d.get("error", ""),
         d.get("error", ""),
     )
 
     print()
     print("=" * 70)
-    print("API IPC")
+    print("IPC API")
     print("=" * 70)
     st, d = post("/api/ipc/race", {"trials": 2, "threads": 4, "increments": 500})
     check("race: status 200", st == 200)
-    check("race: ada 2 percobaan", len(d.get("trials", [])) == 2)
+    check("race: 2 trials returned", len(d.get("trials", [])) == 2)
     check(
-        "race: versi dengan lock SELALU benar",
+        "race: version with lock is ALWAYS correct",
         all(t["safe"] == t["expected"] for t in d["trials"]),
     )
     check(
-        "race: versi tanpa lock tidak pernah melebihi nilai benar",
+        "race: version without lock never exceeds the correct value",
         all(t["unsafe"] <= t["expected"] for t in d["trials"]),
     )
 
@@ -163,69 +162,69 @@ try:
         {"capacity": 3, "producers": 2, "consumers": 2, "items": 4},
     )
     check("prod-cons: status 200", st == 200)
-    check("prod-cons: produksi = 8", d.get("produced") == 8, str(d.get("produced")))
-    check("prod-cons: tidak ada overflow", d.get("overflow_detected") is False)
+    check("prod-cons: produced = 8", d.get("produced") == 8, str(d.get("produced")))
+    check("prod-cons: no overflow", d.get("overflow_detected") is False)
     check(
-        "prod-cons: isi buffer <= kapasitas di SEMUA kejadian",
+        "prod-cons: buffer size <= capacity in ALL events",
         all(e["buffer_size"] <= 3 for e in d["events"]),
-        f"tertinggi {d.get('peak_buffer_usage')}",
+        f"peak {d.get('peak_buffer_usage')}",
     )
-    check("prod-cons: jumlah seimbang", d.get("balanced") is True)
-    check("prod-cons: tidak ada thread menggantung", d.get("stuck_threads") == [])
+    check("prod-cons: counts balanced", d.get("balanced") is True)
+    check("prod-cons: no hanging threads", d.get("stuck_threads") == [])
 
     st, d = post("/api/ipc/philosophers", {"strategy": "all", "meals": 2})
-    check("filsuf: status 200", st == 200)
-    check("filsuf: 3 strategi diuji", len(d.get("results", [])) == 3)
+    check("philosophers: status 200", st == 200)
+    check("philosophers: 3 strategies tested", len(d.get("results", [])) == 3)
     byname = {r["strategy"]: r for r in d["results"]}
     check(
-        "filsuf: ordering tidak deadlock",
+        "philosophers: ordering does not deadlock",
         byname["ordering"]["deadlocked"] is False,
     )
-    check("filsuf: waiter tidak deadlock", byname["waiter"]["deadlocked"] is False)
+    check("philosophers: waiter does not deadlock", byname["waiter"]["deadlocked"] is False)
     check(
-        "filsuf: ordering semua kebagian makan",
+        "philosophers: ordering lets everyone eat",
         byname["ordering"]["total_eaten"] == 10,
         str(byname["ordering"]["total_eaten"]),
     )
     check(
-        "filsuf: naive bermasalah (deadlock atau makan tak lengkap)",
+        "philosophers: naive has problems (deadlock or incomplete meals)",
         byname["naive"]["deadlocked"] or byname["naive"]["total_eaten"] < 10,
-        f"deadlock={byname['naive']['deadlocked']}, makan={byname['naive']['total_eaten']}",
+        f"deadlock={byname['naive']['deadlocked']}, eaten={byname['naive']['total_eaten']}",
     )
 
-    st, d = post("/api/ipc/philosophers", {"strategy": "ngawur"})
-    check("strategi tak dikenal -> 400", st == 400)
+    st, d = post("/api/ipc/philosophers", {"strategy": "invalid"})
+    check("unknown strategy -> 400", st == 400)
 
     print()
     print("=" * 70)
-    print("API DEADLOCK")
+    print("DEADLOCK API")
     print("=" * 70)
     st, d = post("/api/deadlock/bankers", {})
     check("banker: status 200", st == 200)
-    check("banker: contoh baku SAFE", d["safety"]["safe"] is True)
+    check("banker: standard example is SAFE", d["safety"]["safe"] is True)
     check(
-        "banker: safe sequence memuat semua 5 proses",
+        "banker: safe sequence contains all 5 processes",
         len(d["safety"]["sequence"]) == 5,
         " -> ".join(d["safety"]["sequence"]),
     )
     check("banker: Need = Max - Allocation", d["state"]["need"][0] == [7, 4, 3])
-    check("banker: total sistem [10,5,7]", d["state"]["total"] == [10, 5, 7])
+    check("banker: system total [10,5,7]", d["state"]["total"] == [10, 5, 7])
 
     st, d = post("/api/deadlock/bankers", {"example": "unsafe"})
-    check("banker: contoh unsafe terdeteksi", d["safety"]["safe"] is False)
+    check("banker: unsafe example detected", d["safety"]["safe"] is False)
 
     st, d = post(
         "/api/deadlock/bankers",
         {"request": {"process": "P1", "amounts": [1, 0, 2]}},
     )
-    check("banker: P1 minta [1,0,2] DIKABULKAN", d["request"]["granted"] is True)
+    check("banker: P1 requests [1,0,2] GRANTED", d["request"]["granted"] is True)
 
     st, d = post(
         "/api/deadlock/bankers",
         {"request": {"process": "P4", "amounts": [3, 3, 0]}},
     )
     check(
-        "banker: P4 minta [3,3,0] ditolak karena unsafe",
+        "banker: P4 requests [3,3,0] denied because unsafe",
         d["request"]["granted"] is False and d["request"]["reason"] == "unsafe",
         d["request"]["reason"],
     )
@@ -235,7 +234,7 @@ try:
         {"request": {"process": "P0", "amounts": [4, 0, 0]}},
     )
     check(
-        "banker: permintaan melebihi Available -> ditunda",
+        "banker: request exceeds Available -> postponed",
         d["request"]["reason"] == "must_wait",
         d["request"]["reason"],
     )
@@ -245,71 +244,71 @@ try:
         {"request": {"process": "P2", "amounts": [0, 1, 0]}},
     )
     check(
-        "banker: permintaan melebihi Need -> error proses",
+        "banker: request exceeds Need -> process error",
         d["request"]["reason"] == "exceeds_need",
         d["request"]["reason"],
     )
 
     st, d = post(
         "/api/deadlock/bankers",
-        {"request": {"process": "TidakAda", "amounts": [0, 0, 0]}},
+        {"request": {"process": "Unknown", "amounts": [0, 0, 0]}},
     )
-    check("banker: proses tak dikenal -> 400", st == 400)
+    check("banker: unknown process -> 400", st == 400)
 
     st, d = post("/api/deadlock/detection", {"kind": "graph", "example": "deadlock"})
-    check("deteksi graf: deadlock ditemukan", d["detection"]["deadlock"] is True)
+    check("graph detection: deadlock found", d["detection"]["deadlock"] is True)
     check(
-        "deteksi graf: siklus P1->P2->P3->P1",
+        "graph detection: cycle P1->P2->P3->P1",
         d["detection"]["cycles"][0] == ["P1", "P2", "P3", "P1"],
         str(d["detection"]["cycles"][0]),
     )
 
     st, d = post("/api/deadlock/detection", {"kind": "graph", "example": "safe"})
-    check("deteksi graf: tanpa siklus -> aman", d["detection"]["deadlock"] is False)
+    check("graph detection: no cycle -> safe", d["detection"]["deadlock"] is False)
 
     st, d = post("/api/deadlock/detection", {"kind": "multi"})
-    check("deteksi multi: deadlock ditemukan", d["detection"]["deadlock"] is True)
+    check("multi detection: deadlock found", d["detection"]["deadlock"] is True)
     check(
-        "deteksi multi: keempat proses macet",
+        "multi detection: all four processes stuck",
         len(d["detection"]["deadlocked_processes"]) == 4,
     )
-    check("deteksi multi: ada bagian recovery", "recovery" in d)
-    check("deteksi multi: recovery berhasil", d["recovery"]["resolved"] is True)
+    check("multi detection: has a recovery section", "recovery" in d)
+    check("multi detection: recovery succeeded", d["recovery"]["resolved"] is True)
     check(
-        "deteksi multi: ketiga strategi recovery berhasil",
+        "multi detection: all three recovery strategies succeed",
         all(c["resolved"] for c in d["recovery_comparison"]),
     )
     check(
-        "deteksi multi: most_resources korban paling sedikit",
+        "multi detection: most_resources has the fewest victims",
         min(d["recovery_comparison"], key=lambda c: c["victim_count"])["strategy"]
         == "most_resources",
     )
 
     st, d = post("/api/deadlock/detection", {"kind": "ostrich"})
     check("ostrich: status 200", st == 200 and "ostrich" in d)
-    check("ostrich: tidak melakukan tindakan", d["ostrich"]["action_taken"] == "none")
+    check("ostrich: takes no action", d["ostrich"]["action_taken"] == "none")
 
-    st, d = post("/api/deadlock/detection", {"kind": "ngawur"})
-    check("kind tak dikenal -> 400", st == 400)
+    st, d = post("/api/deadlock/detection", {"kind": "invalid"})
+    check("unknown kind -> 400", st == 400)
 
     print()
     print("=" * 70)
-    print("PENANGANAN KESALAHAN")
+    print("ERROR HANDLING")
     print("=" * 70)
-    st, d = post("/api/endpoint-palsu", {})
-    check("endpoint tak ada -> 404", st == 404)
+    st, d = post("/api/fake-endpoint", {})
+    check("missing endpoint -> 404", st == 404)
 
     req = urllib.request.Request(
         BASE + "/api/scheduling",
-        data=b"{bukan json",
+        data=b"{not json",
         headers={"Content-Type": "application/json"},
         method="POST",
     )
     try:
         urllib.request.urlopen(req, timeout=10)
-        check("JSON rusak -> 400", False)
+        check("broken JSON -> 400", False)
     except urllib.error.HTTPError as e:
-        check("JSON rusak -> 400", e.code == 400)
+        check("broken JSON -> 400", e.code == 400)
 
 finally:
     srv.shutdown()
@@ -317,6 +316,6 @@ finally:
 
 print()
 print("=" * 70)
-print(f"HASIL AKHIR: {passed} lulus, {failed} gagal")
+print(f"RESULT: {passed} passed, {failed} failed")
 print("=" * 70)
 sys.exit(1 if failed else 0)

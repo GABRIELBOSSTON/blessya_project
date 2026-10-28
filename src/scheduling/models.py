@@ -1,6 +1,6 @@
-"""Struktur data dasar untuk simulasi penjadwalan proses (CPU Scheduling).
+"""Core data structures for the process scheduling (CPU Scheduling) simulation.
 
-Materi: Process Scheduling (Tanenbaum, Modern Operating Systems, Bab 2.4)
+Topic: Process Scheduling (Tanenbaum, Modern Operating Systems, Section 2.4)
 """
 
 from dataclasses import dataclass, field
@@ -8,12 +8,12 @@ from dataclasses import dataclass, field
 
 @dataclass
 class Process:
-    """Satu proses yang akan dijadwalkan oleh CPU.
+    """A single process to be scheduled on the CPU.
 
-    pid      : nama/identitas proses, contoh "P1"
-    arrival  : waktu proses tiba di ready queue
-    burst    : lama waktu CPU yang dibutuhkan proses
-    priority : angka prioritas, makin KECIL makin penting
+    pid      : process name/identifier, e.g. "P1"
+    arrival  : time the process arrives in the ready queue
+    burst    : CPU time the process needs
+    priority : priority number; the SMALLER it is, the more important
     """
 
     pid: str
@@ -37,7 +37,7 @@ class Process:
 
 @dataclass
 class Segment:
-    """Satu potongan waktu di Gantt chart: proses `pid` memakai CPU dari start..end."""
+    """One time slice in the Gantt chart: process `pid` uses the CPU from start..end."""
 
     pid: str
     start: int
@@ -50,12 +50,12 @@ class Segment:
 
 @dataclass
 class Metrics:
-    """Hasil pengukuran untuk satu proses setelah selesai dijadwalkan.
+    """Measurements for one process after it has been scheduled.
 
-    completion - waktu proses selesai total
-    turnaround - completion - arrival  (total waktu proses "hidup" di sistem)
-    waiting    - turnaround - burst    (waktu sia-sia menunggu, bukan kerja)
-    response   - waktu pertama kali proses dapat CPU, dikurangi arrival
+    completion - time the process fully finishes
+    turnaround - completion - arrival  (total time the process "lives" in the system)
+    waiting    - turnaround - burst    (time spent waiting, not working)
+    response   - time the process first gets the CPU, minus arrival
     """
 
     pid: str
@@ -69,7 +69,7 @@ class Metrics:
 
 @dataclass
 class ScheduleResult:
-    """Keluaran lengkap dari sebuah algoritma penjadwalan."""
+    """Complete output of a scheduling algorithm."""
 
     algorithm: str
     timeline: list[Segment] = field(default_factory=list)
@@ -95,14 +95,14 @@ class ScheduleResult:
 
     @property
     def cpu_utilization(self) -> float:
-        """Persentase waktu CPU benar-benar dipakai (bukan idle)."""
+        """Percentage of time the CPU is actually busy (not idle)."""
         if self.total_time == 0:
             return 0.0
         busy = sum(s.duration for s in self.timeline if s.pid != "IDLE")
         return round(busy / self.total_time * 100, 2)
 
     def to_dict(self) -> dict:
-        """Bentuk JSON yang dikirim ke tampilan web."""
+        """JSON shape sent to the web interface."""
         return {
             "algorithm": self.algorithm,
             "timeline": [
@@ -133,9 +133,9 @@ def build_metrics(
     processes: list[Process],
     timeline: list[Segment],
 ) -> list[Metrics]:
-    """Hitung completion/turnaround/waiting/response dari Gantt chart yang sudah jadi.
+    """Compute completion/turnaround/waiting/response from a finished Gantt chart.
 
-    Dipakai oleh semua algoritma supaya rumusnya konsisten dan tidak dihitung dua kali.
+    Shared by every algorithm so the formulas stay consistent and are computed once.
     """
     first_seen: dict[str, int] = {}
     last_seen: dict[str, int] = {}
@@ -165,11 +165,11 @@ def build_metrics(
 
 
 def merge_adjacent(timeline: list[Segment]) -> list[Segment]:
-    """Gabungkan segmen berdampingan milik proses yang sama.
+    """Merge adjacent segments that belong to the same process.
 
-    Algoritma preemptive menghasilkan banyak segmen 1 satuan waktu
-    (hasil simulasi tick-per-tick). Fungsi ini merapikannya supaya
-    Gantt chart tidak penuh kotak kecil yang sama.
+    Preemptive algorithms produce many 1-unit segments (from the
+    tick-by-tick simulation). This tidies them up so the Gantt chart is
+    not filled with many identical small boxes.
     """
     if not timeline:
         return []
@@ -183,12 +183,12 @@ def merge_adjacent(timeline: list[Segment]) -> list[Segment]:
 
 
 def validate_processes(processes: list[Process]) -> None:
-    """Cegah identitas ganda merusak dictionary remaining/metrics."""
+    """Prevent duplicate identifiers from corrupting the remaining/metrics dictionaries."""
     if len({p.pid for p in processes}) != len(processes):
         raise ValueError("each process name must be unique")
 
 
 def count_context_switches(timeline: list[Segment]) -> int:
-    """Peralihan langsung antarproses berbeda; idle/dispatch awal tidak dihitung."""
+    """Direct switches between different processes; idle and the first dispatch are not counted."""
     return sum(a.pid != b.pid and a.pid != "IDLE" and b.pid != "IDLE"
                for a, b in zip(timeline, timeline[1:]))
